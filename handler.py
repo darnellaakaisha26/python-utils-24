@@ -1,76 +1,40 @@
-"""Module providing helper functions for common operations."""
 import json
-import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, Optional, Union
 
-def safe_divide(a: float, b: float) -> Optional[float]:
-    """Divide two numbers safely, returning None on zero divisor."""
-    if b == 0:
-        return None
-    return a / b
+def sanitize_data(data: Any, default: Any = None) -> Any:
+    """
+    Recursively cleans input data to ensure dictionary keys are strings
+    and handles basic serialization for non-serializable objects.
+    """
+    if isinstance(data, dict):
+        return {str(k): sanitize_data(v, default) for k, v in data.items()}
+    if isinstance(data, list):
+        return [sanitize_data(i, default) for i in data]
+    if isinstance(data, (str, int, float, bool, type(None))):
+        return data
+    return str(data)
 
-def flatten_list(nested_list: List[List[Any]]) -> List[Any]:
-    """Flatten a nested list of lists into one list."""
-    return [item for sublist in nested_list for item in sublist]
-
-def get_nested_value(data: Dict[str, Any], path: List[str]) -> Any:
-    """Retrieve value from nested dict using key path list."""
-    current = data
-    for key in path:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return None
-    return current
-
-def format_timestamp(timestamp: float, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
-    """Convert timestamp to formatted datetime string."""
-    return datetime.fromtimestamp(timestamp).strftime(fmt)
-
-def chunk_list(items: List[Any], size: int) -> List[List[Any]]:
-    """Split list into smaller chunks of specified size."""
-    if size <= 0:
-        return [items]
-    return [items[i:i + size] for i in range(0, len(items), size)]
-
-def merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge two dicts with override taking precedence."""
-    result = base.copy()
-    result.update(override)
-    return result
-
-def basic_email_check(email: str) -> bool:
-    """Check if string looks like a basic email address."""
-    if not email or "@" not in email:
-        return False
-    parts = email.split("@")
-    return len(parts) == 2 and "." in parts[1]
-
-def read_json_safely(filepath: str) -> Optional[Dict[str, Any]]:
-    """Read JSON file and return dict or None on error."""
+def safe_load_json(file_path: str) -> Dict[str, Any]:
+    """
+    Reads a file and attempts to parse it as JSON.
+    Returns an empty dictionary if file does not exist or parse fails.
+    """
     try:
-        with open(filepath, "r", encoding="utf-8") as file:
-            return json.load(file)
-    except (OSError, json.JSONDecodeError, TypeError):
-        return None
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, PermissionError):
+        return {}
 
-def write_json_safely(filepath: str, data: Dict[str, Any]) -> bool:
-    """Write dict to JSON file, return success status."""
-    try:
-        with open(filepath, "w", encoding="utf-8") as file:
-            json.dump(data, file, indent=2, ensure_ascii=False)
-        return True
-    except (OSError, TypeError):
-        return False
-
-def retry_call(func: Callable[[], Any], retries: int = 3, delay: float = 0.5) -> Any:
-    """Retry function call on exception up to retries times."""
-    for attempt in range(retries):
+def process_payload(payload: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Unified interface to parse input and sanitize fields.
+    """
+    if isinstance(payload, str):
         try:
-            return func()
-        except Exception:
-            if attempt == retries - 1:
-                raise
-            time.sleep(delay)
-    return None
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            data = {}
+    else:
+        data = payload
+    
+    return sanitize_data(data) if isinstance(data, dict) else {}
