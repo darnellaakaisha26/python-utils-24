@@ -1,33 +1,47 @@
-"""Processor module for handling data with validation."""
+import logging
+from typing import Any, Dict, List
 
-def validate_value(value):
-    """Check if value is a positive number."""
-    if not isinstance(value, (int, float)):
-        return False, "Must be a number"
-    if value <= 0:
-        return False, "Must be positive"
-    return True, None
+logger = logging.getLogger(__name__)
 
-def process_data(input_list):
-    """Main function with processing loop and validation."""
-    results = []
-    for item in input_list:  # main processing loop
-        # Validate input
-        is_valid, error = validate_value(item)
-        if not is_valid:
-            print(f"Invalid input {item}: {error}")
-            continue
-        # Process the valid input
-        processed = item * 2 + 1  # example processing
-        results.append(processed)
-    return results
+def validate_payload(data: Any) -> Dict[str, Any]:
+    """Validates the incoming processing payload to ensure data integrity."""
+    if not isinstance(data, dict):
+        raise ValueError("Payload must be a dictionary")
+    
+    transaction_id = data.get("transaction_id")
+    if not transaction_id or not isinstance(transaction_id, str):
+        raise ValueError("Missing or invalid transaction_id")
+        
+    amount = data.get("amount")
+    if amount is None or not isinstance(amount, (int, float)) or amount <= 0:
+        raise ValueError("Amount must be a positive number")
+        
+    return {
+        "transaction_id": transaction_id,
+        "amount": float(amount),
+        "status": "pending"
+    }
 
-def main():
-    """Example usage."""
-    sample_data = [10, -5, 3.5, "hello", 0, 25]
-    print("Processing data...")
-    output = process_data(sample_data)
-    print(f"Results: {output}")
-
-if __name__ == "__main__":
-    main()
+def process_batch(batch_data: List[Any]) -> Dict[str, List[Any]]:
+    """Processes a batch of input payloads with strict validation error handling."""
+    successful_jobs = []
+    failed_jobs = []
+    
+    for index, item in enumerate(batch_data):
+        try:
+            validated_data = validate_payload(item)
+            # Simulate processing step with validated input
+            validated_data["status"] = "processed"
+            successful_jobs.append(validated_data)
+        except (ValueError, TypeError) as error:
+            failed_jobs.append({
+                "index": index,
+                "raw_data": item,
+                "error": str(error)
+            })
+            logger.warning(f"Validation failed for item at index {index}: {error}")
+            
+    return {
+        "processed": successful_jobs,
+        "failed": failed_jobs
+    }
