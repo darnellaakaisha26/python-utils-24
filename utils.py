@@ -1,44 +1,28 @@
-import functools
-import time
-import logging
-from typing import Callable, Any, Dict
+from typing import Any, Dict, List, Optional
 
-# Configure basic logger for utility functions
-logger = logging.getLogger(__name__)
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
+    """Flatten nested dictionary into single level."""
+    items: List[tuple] = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-def memoize_with_ttl(ttl_seconds: int = 300) -> Callable:
-    """Decorator for caching function results with a time-to-live period."""
-    def decorator(func: Callable) -> Callable:
-        cache: Dict[tuple, tuple[Any, float]] = {}
+def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
+    """Split list into smaller chunks of fixed size."""
+    if size <= 0:
+        raise ValueError("Chunk size must be positive")
+    return [data[i:i + size] for i in range(0, len(data), size)]
 
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            now = time.time()
-            key = (args, frozenset(kwargs.items()))
-            
-            if key in cache:
-                result, timestamp = cache[key]
-                if now - timestamp < ttl_seconds:
-                    return result
-            
-            result = func(*args, **kwargs)
-            cache[key] = (result, now)
-            return result
-        return wrapper
-    return decorator
+def clean_data(data: Any, default: Any = None) -> Any:
+    """Return data if not None, otherwise return default."""
+    return data if data is not None else default
 
-def batch_process(iterable: list, chunk_size: int = 100):
-    """Memory-efficient generator for processing large lists in chunks."""
-    for i in range(0, len(iterable), chunk_size):
-        yield iterable[i:i + chunk_size]
-
-def timing_decorator(func: Callable) -> Callable:
-    """Performance monitoring wrapper for core operations."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        duration = time.perf_counter() - start
-        logger.debug(f"Function {func.__name__} took {duration:.4f}s")
-        return result
-    return wrapper
+def parse_bool(value: Any) -> bool:
+    """Coerce input value to boolean."""
+    if isinstance(value, str):
+        return value.lower() in ("yes", "true", "t", "1")
+    return bool(value)
