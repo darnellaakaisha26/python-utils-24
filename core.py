@@ -1,67 +1,33 @@
-from typing import Any, Dict, List, Callable
+from typing import Any, Dict, List, Optional, Union
 
-def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
-    """Flatten a nested dictionary to a single-level dict."""
-    items: List[tuple] = []
-    for key, value in data.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
-        if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
-        elif isinstance(value, list):
-            for i, item in enumerate(value):
-                list_key = f"{new_key}[{i}]"
-                if isinstance(item, dict):
-                    items.extend(flatten_dict(item, list_key, sep=sep).items())
-                else:
-                    items.append((list_key, item))
-        else:
-            items.append((new_key, value))
-    return dict(items)
+class DataProcessor:
+    """Handles transformation of dictionary datasets."""
 
-def unflatten_dict(flat_data: Dict[str, Any], sep: str = '.') -> Dict[str, Any]:
-    """Unflatten a flat dict to nested structure."""
-    result: Dict[str, Any] = {}
-    for key, value in flat_data.items():
-        keys = key.split(sep)
-        current = result
-        for k in keys[:-1]:
-            if k not in current:
-                current[k] = {}
-            current = current[k]
-        current[keys[-1]] = value
-    return result
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+        self.config: Dict[str, Any] = config or {}
 
-def merge_dicts(dict1: Dict[str, Any], dict2: Dict[str, Any], deep: bool = True) -> Dict[str, Any]:
-    """Recursively merge two dictionaries."""
-    result = dict1.copy()
-    for key, value in dict2.items():
-        if deep and key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = merge_dicts(result[key], value, deep=True)
-        else:
-            result[key] = value
-    return result
+    def flatten_dict(self, data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+        """Recursively flattens a nested dictionary into a single-level map."""
+        items: List[tuple] = []
+        for k, v in data.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(self.flatten_dict(v, new_key, sep=sep).items())
+            else:
+                items.append((new_key, v))
+        return dict(items)
 
-def safe_get(data: Dict[str, Any], path: str, default: Any = None, sep: str = '.') -> Any:
-    """Get value from nested dict using path string."""
-    keys = path.split(sep)
-    current: Any = data
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
+    def format_values(self, data: Dict[str, Any], prefix: str = "val") -> Dict[str, str]:
+        """Converts all dictionary values to string representations with prefixes."""
+        return {k: f"{prefix}_{v}" for k, v in data.items()}
 
-def filter_by_keys(data: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
-    """Create dict filtered to include only given keys."""
-    return {k: data.get(k) for k in keys if k in data}
+    def filter_keys(self, data: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
+        """Returns a subset of the dictionary based on allowed keys."""
+        return {k: v for k, v in data.items() if k in keys}
 
-def apply_to_values(data: Dict[str, Any], func: Callable[[Any], Any]) -> Dict[str, Any]:
-    """Transform all non-dict values using provided function."""
-    result: Dict[str, Any] = {}
-    for key, value in data.items():
-        if isinstance(value, dict):
-            result[key] = apply_to_values(value, func)
-        else:
-            result[key] = func(value)
-    return result
+def process_payload(payload: Union[Dict, List]) -> Dict[str, Any]:
+    """Entry point for processing incoming payload structures."""
+    if isinstance(payload, list):
+        return {"count": len(payload), "data": payload}
+    processor = DataProcessor()
+    return processor.flatten_dict(payload)
