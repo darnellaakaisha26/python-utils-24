@@ -1,39 +1,44 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # python-utils-24
 
-A collection of utility functions and classes designed to make common Python tasks easier and more efficient. Whether you're working on data manipulation, string processing, or file handling, python-utils-24 provides a reliable toolkit to boost your productivity.
+`python-utils-24` is a lightweight, zero-dependency library designed to streamline daily Python development workflows. It provides optimized utility functions for common operations like safe dictionary traversal, robust datetime parsing, and cryptographically secure token generation.
 
 ## Features
-- **Data Manipulation**: Streamlined functions for transforming lists and dictionaries, including filtering, sorting, and custom transformations.
-- **String Utilities**: Advanced string handling features like smart casing, slugify, and substring extraction to simplify your text processing tasks.
-- **File Operations**: Easy-to-use methods for reading and writing files, including CSV and JSON formats, with built-in error handling.
-- **Time Management**: Helper functions for date and time manipulation, such as formatting, parsing, and calculating differences.
+
+* **Safe Nested Lookup**: Extract values from nested dictionaries using intuitive dot-notation paths without raising `KeyError`.
+* **Smart Datetime Parsing**: Convert ambiguous timestamp strings into standard, timezone-aware UTC datetime objects automatically.
+* **Cryptographic Helpers**: Generate secure, high-entropy tokens and keys suitable for APIs and session management.
 
 ## Installation
 
-To install python-utils-24, you can use pip. Run the following command in your terminal:
+Install the package directly from PyPI using pip:
 
 ```bash
 pip install python-utils-24
 ```
 
-## Basic Usage Example
+## Usage
 
-Here’s a quick example to get you started with some of the utility features provided by the library:
+Here is how easily you can integrate these utilities into your script:
 
 ```python
-from python_utils24 import StringUtils, FileUtils
+from python_utils_24 import get_nested, to_utc, generate_token
 
-# Using StringUtils to slugify text
-slug = StringUtils.slugify("Hello World! Welcome to python-utils-24")
-print(slug)  # Output: hello-world-welcome-to-python-utils-24
+# 1. Safely extract deep values
+data = {"users": {"active": {"admin": "alice@example.com"}}}
+email = get_nested(data, "users.active.admin", default="guest")
+print(email)  # Output: alice@example.com
 
-# Using FileUtils to read data from a JSON file
-data = FileUtils.read_json('data.json')
-print(data)
+# 2. Convert raw strings to UTC datetime
+timestamp = to_utc("2024-11-20 18:30:00 PST")
+print(timestamp)  # Output: 2024-11-21 02:30:00+00:00
+
+# 3. Generate a secure hexadecimal API token
+token = generate_token(length=32)
+print(token)  # Output: e.g., '9f4c3a2b7d8e0f1a9f4c3a2b7d8e0f1a'
 ```
 
 ## License
 
-![MIT License](https://img.shields.io/badge/License-MIT-green)
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
