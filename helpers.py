@@ -1,11 +1,42 @@
-import json
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional
 
-def get_nested_value(data: Dict[str, Any], path: str, default: Any = None, separator: str = '.') -> Any:
-    """Retrieve value from nested dict using dot-separated path."""
-    if not isinstance(data, dict):
-        return default
-    keys = path.split(separator)
+
+def flatten_dict(
+    data: Dict[str, Any], parent_key: str = "", sep: str = "."
+) -> Dict[str, Any]:
+    """Recursively flatten a nested dictionary into single-level dot notation keys."""
+    items: List[tuple[str, Any]] = []
+    for key, value in data.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
+
+
+def unflatten_dict(data: Dict[str, Any], sep: str = ".") -> Dict[str, Any]:
+    """Reconstruct a nested dictionary structure from flattened keys."""
+    result: Dict[str, Any] = {}
+    for key, value in data.items():
+        parts = key.split(sep)
+        current = result
+        for part in parts[:-1]:
+            if part not in current or not isinstance(current[part], dict):
+                current[part] = {}
+            current = current[part]
+        current[parts[-1]] = value
+    return result
+
+
+def safe_get(
+    data: Dict[str, Any],
+    path: str,
+    default: Optional[Any] = None,
+    sep: str = ".",
+) -> Any:
+    """Safely retrieve nested values using path notation without KeyError."""
+    keys = path.split(sep)
     current = data
     for key in keys:
         if isinstance(current, dict) and key in current:
@@ -13,41 +44,3 @@ def get_nested_value(data: Dict[str, Any], path: str, default: Any = None, separ
         else:
             return default
     return current
-
-def flatten_dict(nested: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
-    """Flatten nested dictionary into single level with separator."""
-    items: List[tuple] = []
-    for k, v in nested.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge two dictionaries, override takes precedence."""
-    result = base.copy()
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-def safe_json_parse(data: Union[str, bytes, bytearray], default: Any = None) -> Any:
-    """Parse JSON safely, return default on error."""
-    try:
-        return json.loads(data)
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return default
-
-def chunk_data(data: List[Any], size: int) -> List[List[Any]]:
-    """Split list into chunks of given size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be positive")
-    return [data[i:i + size] for i in range(0, len(data), size)]
-
-def filter_none(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Remove keys with None values from dictionary."""
-    return {k: v for k, v in data.items() if v is not None}
