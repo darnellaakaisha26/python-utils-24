@@ -1,47 +1,43 @@
+import time
+import random
 import logging
-from typing import Any, Dict, List
+from functools import wraps
+from typing import Callable, Any, Type, Tuple
 
 logger = logging.getLogger(__name__)
 
-def validate_payload(data: Any) -> Dict[str, Any]:
-    """Validates the incoming processing payload to ensure data integrity."""
-    if not isinstance(data, dict):
-        raise ValueError("Payload must be a dictionary")
-    
-    transaction_id = data.get("transaction_id")
-    if not transaction_id or not isinstance(transaction_id, str):
-        raise ValueError("Missing or invalid transaction_id")
-        
-    amount = data.get("amount")
-    if amount is None or not isinstance(amount, (int, float)) or amount <= 0:
-        raise ValueError("Amount must be a positive number")
-        
-    return {
-        "transaction_id": transaction_id,
-        "amount": float(amount),
-        "status": "pending"
-    }
-
-def process_batch(batch_data: List[Any]) -> Dict[str, List[Any]]:
-    """Processes a batch of input payloads with strict validation error handling."""
-    successful_jobs = []
-    failed_jobs = []
-    
-    for index, item in enumerate(batch_data):
-        try:
-            validated_data = validate_payload(item)
-            # Simulate processing step with validated input
-            validated_data["status"] = "processed"
-            successful_jobs.append(validated_data)
-        except (ValueError, TypeError) as error:
-            failed_jobs.append({
-                "index": index,
-                "raw_data": item,
-                "error": str(error)
-            })
-            logger.warning(f"Validation failed for item at index {index}: {error}")
-            
-    return {
-        "processed": successful_jobs,
-        "failed": failed_jobs
-    }
+def retry(
+    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
+    tries: int = 4,
+    delay: float = 1.0,
+    backoff: float = 2.0,
+    jitter: bool = True
+) -> Callable:
+    """
+    Decorator for retrying a function with exponential backoff and optional jitter.
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            attempt_delay = delay
+            for attempt in range(1, tries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt == tries:
+                        logger.error(f"Failed '{func.__name__}' after {tries} attempts. Error: {e}")
+                        raise e
+                    
+                    current_delay = attempt_delay
+                    if jitter:
+                        current_delay *= random.uniform(0.5, 1.5)
+                    
+                    logger.warning(
+                        f"Retrying '{func.__name__}' in {current_delay:.2f} seconds... "
+                        f"(Attempt {attempt}/{tries} failed due to: {e})"
+                    )
+                    time.sleep(current_delay)
+                    attempt_delay *= backoff
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
