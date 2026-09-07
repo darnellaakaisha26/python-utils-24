@@ -1,28 +1,30 @@
-from typing import Any, Dict, List, Optional
+import time
+import functools
+import logging
+from typing import Callable, Any, Type, Tuple
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
-    """Flatten nested dictionary into single level."""
-    items: List[tuple] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+logger = logging.getLogger(__name__)
 
-def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
-    """Split list into smaller chunks of fixed size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be positive")
-    return [data[i:i + size] for i in range(0, len(data), size)]
-
-def clean_data(data: Any, default: Any = None) -> Any:
-    """Return data if not None, otherwise return default."""
-    return data if data is not None else default
-
-def parse_bool(value: Any) -> bool:
-    """Coerce input value to boolean."""
-    if isinstance(value, str):
-        return value.lower() in ("yes", "true", "t", "1")
-    return bool(value)
+def retry_network_operation(
+    max_retries: int = 3, 
+    delay: float = 1.0, 
+    exceptions: Tuple[Type[Exception], ...] = (ConnectionError, TimeoutError)
+):
+    """Decorator to retry network-related operations on failure."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying...")
+                    if attempt < max_retries - 1:
+                        time.sleep(delay * (2 ** attempt))
+            
+            logger.error(f"Operation failed after {max_retries} attempts.")
+            raise last_exception
+        return wrapper
+    return decorator
