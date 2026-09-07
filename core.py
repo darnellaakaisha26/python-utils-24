@@ -1,33 +1,46 @@
-from typing import Any, Dict, List, Optional, Union
+import time
+from typing import Any, Callable, Dict, Hashable, List, Tuple
 
-class DataProcessor:
-    """Handles transformation of dictionary datasets."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
-        self.config: Dict[str, Any] = config or {}
+class FastTaskRunner:
+    """Core task execution engine optimized with LRU caching and batching."""
 
-    def flatten_dict(self, data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-        """Recursively flattens a nested dictionary into a single-level map."""
-        items: List[tuple] = []
-        for k, v in data.items():
-            new_key = f"{parent_key}{sep}{k}" if parent_key else k
-            if isinstance(v, dict):
-                items.extend(self.flatten_dict(v, new_key, sep=sep).items())
-            else:
-                items.append((new_key, v))
-        return dict(items)
+    def __init__(self, max_cache_size: int = 1024):
+        self.max_cache_size = max_cache_size
+        self._cache: Dict[Hashable, Tuple[float, Any]] = {}
 
-    def format_values(self, data: Dict[str, Any], prefix: str = "val") -> Dict[str, str]:
-        """Converts all dictionary values to string representations with prefixes."""
-        return {k: f"{prefix}_{v}" for k, v in data.items()}
+    def memoized_run(
+        self, func: Callable, *args: Any, ttl: float = 60.0, **kwargs: Any
+    ) -> Any:
+        """Execute a function or return cached result if within TTL."""
+        kw_tuple = tuple(sorted(kwargs.items()))
+        key = (func.__name__, args, kw_tuple)
+        now = time.time()
 
-    def filter_keys(self, data: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
-        """Returns a subset of the dictionary based on allowed keys."""
-        return {k: v for k, v in data.items() if k in keys}
+        if key in self._cache:
+            timestamp, result = self._cache[key]
+            if now - timestamp < ttl:
+                return result
 
-def process_payload(payload: Union[Dict, List]) -> Dict[str, Any]:
-    """Entry point for processing incoming payload structures."""
-    if isinstance(payload, list):
-        return {"count": len(payload), "data": payload}
-    processor = DataProcessor()
-    return processor.flatten_dict(payload)
+        result = func(*args, **kwargs)
+
+        if len(self._cache) >= self.max_cache_size:
+            oldest_key = min(self._cache, key=lambda k: self._cache[k][0])
+            del self._cache[oldest_key]
+
+        self._cache[key] = (now, result)
+        return result
+
+    def batch_process(
+        self, func: Callable, items: List[Any], chunk_size: int = 100
+    ) -> List[Any]:
+        """Process items in optimized chunks to minimize execution overhead."""
+        results = []
+        for i in range(0, len(items), chunk_size):
+            chunk = items[i : i + chunk_size]
+            results.extend([func(item) for item in chunk])
+        return results
+
+    def clear_cache(self) -> None:
+        """Clear all cached evaluation results."""
+        self._cache.clear()
