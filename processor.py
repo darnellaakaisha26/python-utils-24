@@ -1,43 +1,33 @@
 import time
-import random
-import logging
-from functools import wraps
+import urllib.error
+import urllib.request
 from typing import Callable, Any, Type, Tuple
 
-logger = logging.getLogger(__name__)
 
-def retry(
-    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
-    tries: int = 4,
+def retry_network_operation(
+    func: Callable[..., Any],
+    max_retries: int = 3,
     delay: float = 1.0,
-    backoff: float = 2.0,
-    jitter: bool = True
-) -> Callable:
-    """
-    Decorator for retrying a function with exponential backoff and optional jitter.
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempt_delay = delay
-            for attempt in range(1, tries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    if attempt == tries:
-                        logger.error(f"Failed '{func.__name__}' after {tries} attempts. Error: {e}")
-                        raise e
-                    
-                    current_delay = attempt_delay
-                    if jitter:
-                        current_delay *= random.uniform(0.5, 1.5)
-                    
-                    logger.warning(
-                        f"Retrying '{func.__name__}' in {current_delay:.2f} seconds... "
-                        f"(Attempt {attempt}/{tries} failed due to: {e})"
-                    )
-                    time.sleep(current_delay)
-                    attempt_delay *= backoff
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+    backoff_factor: float = 2.0,
+    exceptions: Tuple[Type[BaseException], ...] = (urllib.error.URLError, TimeoutError, ConnectionError),
+) -> Any:
+    """Executes a network operation with exponential backoff retry logic."""
+    current_delay = delay
+    for attempt in range(1, max_retries + 1):
+        try:
+            return func()
+        except exceptions as e:
+            if attempt == max_retries:
+                raise e
+            time.sleep(current_delay)
+            current_delay *= backoff_factor
+
+
+def fetch_url_data(url: str, timeout: float = 5.0) -> bytes:
+    """Fetches raw data from a URL using retry_network_operation."""
+    def _operation():
+        req = urllib.request.Request(url, headers={'User-Agent': 'python-utils-24/1.0'})
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return response.read()
+
+    return retry_network_operation(_operation)
