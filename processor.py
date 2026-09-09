@@ -1,33 +1,25 @@
-import time
-import urllib.error
-import urllib.request
-from typing import Callable, Any, Type, Tuple
+from typing import List, Dict, Any, Optional
 
+class DataProcessor:
+    """Handles transformation and validation of data payloads."""
 
-def retry_network_operation(
-    func: Callable[..., Any],
-    max_retries: int = 3,
-    delay: float = 1.0,
-    backoff_factor: float = 2.0,
-    exceptions: Tuple[Type[BaseException], ...] = (urllib.error.URLError, TimeoutError, ConnectionError),
-) -> Any:
-    """Executes a network operation with exponential backoff retry logic."""
-    current_delay = delay
-    for attempt in range(1, max_retries + 1):
-        try:
-            return func()
-        except exceptions as e:
-            if attempt == max_retries:
-                raise e
-            time.sleep(current_delay)
-            current_delay *= backoff_factor
+    def __init__(self, settings: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize processor with optional configuration."""
+        self.settings: Dict[str, Any] = settings or {}
 
+    def process_items(self, items: List[str]) -> List[str]:
+        """Convert input strings to uppercase and filter length."""
+        return [item.upper() for item in items if len(item) > 0]
 
-def fetch_url_data(url: str, timeout: float = 5.0) -> bytes:
-    """Fetches raw data from a URL using retry_network_operation."""
-    def _operation():
-        req = urllib.request.Request(url, headers={'User-Agent': 'python-utils-24/1.0'})
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            return response.read()
+    def extract_keys(self, data: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
+        """Return a subset dictionary based on allowed keys."""
+        return {k: data[k] for k in keys if k in data}
 
-    return retry_network_operation(_operation)
+    def validate_batch(self, batch: List[Dict[str, Any]]) -> bool:
+        """Ensure all batch items contain the required key."""
+        required = self.settings.get("required_key", "id")
+        return all(required in item for item in batch)
+
+    def format_output(self, data: Any) -> str:
+        """Cast any input to string representation."""
+        return str(data).strip()
