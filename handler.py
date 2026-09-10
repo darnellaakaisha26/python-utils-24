@@ -1,36 +1,31 @@
-import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+import json
 
-logger = logging.getLogger(__name__)
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """
+    Flattens a nested dictionary into a single-level dictionary.
+    Useful for processing configuration files or API responses.
+    """
+    items: List[tuple] = []
+    for k, v in data.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-class DataHandler:
-    """Manages data transformation and flow control."""
+def safe_json_load(content: str, default: Optional[Dict] = None) -> Dict[str, Any]:
+    """
+    Attempts to parse JSON string, returning a default dict on failure.
+    """
+    try:
+        return json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return default or {}
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        self.config = config or {}
-        self.is_active = True
-
-    def process_payload(self, data: Any) -> Dict[str, Any]:
-        """Validates and formats incoming data packets."""
-        if not self.is_active:
-            raise RuntimeError("Handler is currently disabled")
-
-        try:
-            processed = {
-                "status": "success",
-                "payload": data,
-                "meta": {"version": "2.4", "source": "internal"}
-            }
-            return processed
-        except Exception as e:
-            logger.error(f"Processing error: {e}")
-            return {"status": "error", "message": str(e)}
-
-    def shutdown(self) -> None:
-        """Graceful cleanup of handler resources."""
-        self.is_active = False
-        logger.info("Handler resources successfully released")
-
-def create_handler(config: Optional[Dict[str, Any]] = None) -> DataHandler:
-    """Factory function for DataHandler initialization."""
-    return DataHandler(config=config)
+def sanitize_keys(data: Dict[str, Any], prefix: str = 'clean_') -> Dict[str, Any]:
+    """
+    Appends a prefix to keys in a dictionary for data safety.
+    """
+    return {f"{prefix}{k}": v for k, v in data.items()}
