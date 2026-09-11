@@ -1,40 +1,34 @@
+import time
+import functools
 import logging
-from typing import Any, List, Optional
+from typing import Callable, Any, Type
 
 logger = logging.getLogger(__name__)
 
-class DataProcessor:
-    """Handles batch processing of application data sets."""
+def retry_on_failure(exceptions: tuple[Type[Exception], ...], 
+                     max_retries: int = 3, 
+                     delay: float = 1.0) -> Callable:
+    """Decorator for retrying functions on specific exceptions."""
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        time.sleep(delay * (2 ** attempt))
+                        logger.warning(f"Retry {attempt + 1}/{max_retries} due to {e}")
+                    else:
+                        logger.error("Max retries reached")
+            raise last_exception  # type: ignore
+        return wrapper
+    return decorator
 
-    def __init__(self, batch_size: int = 100):
-        self.batch_size = batch_size
-
-    def validate_input(self, data: Any) -> bool:
-        """Ensures input data conforms to expected structure."""
-        return isinstance(data, (list, dict)) and len(data) > 0
-
-    def process_batch(self, items: List[Any]) -> List[Any]:
-        """Cleans and standardizes input list entries."""
-        processed = []
-        for item in items:
-            if self.validate_input(item):
-                processed.append(self.sanitize(item))
-            else:
-                logger.warning("Skipping invalid item in batch")
-        return processed
-
-    def sanitize(self, item: Any) -> Any:
-        """Normalizes string inputs by stripping whitespace."""
-        if isinstance(item, str):
-            return item.strip()
-        if isinstance(item, dict):
-            return {k: (v.strip() if isinstance(v, str) else v) for k, v in item.items()}
-        return item
-
-    def execute(self, raw_data: List[Any]) -> List[Any]:
-        """Orchestrates batch processing flow."""
-        results = []
-        for i in range(0, len(raw_data), self.batch_size):
-            batch = raw_data[i:i + self.batch_size]
-            results.extend(self.process_batch(batch))
-        return results
+@retry_on_failure(exceptions=(ConnectionError, TimeoutError), max_retries=3)
+def fetch_data(url: str) -> str:
+    """Example function that might fail due to network."""
+    # Simulating a network operation
+    return f"Data from {url}"
