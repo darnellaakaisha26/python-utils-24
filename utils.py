@@ -1,39 +1,30 @@
+import time
+import functools
 import logging
-from typing import Any, Dict, Optional
+from typing import Callable, Any, Type, Tuple
 
 logger = logging.getLogger(__name__)
 
-
-def safe_convert_to_int(
-    val: Any, default: Optional[int] = None
-) -> Optional[int]:
-    """Safely convert a value to an integer, handling edge cases."""
-    if val is None:
-        return default
-    try:
-        if isinstance(val, str) and "." in val:
-            return int(float(val))
-        return int(val)
-    except (ValueError, TypeError) as e:
-        logger.warning(
-            f"Failed to convert {val} of type {type(val)} to int: {e}"
-        )
-        return default
-
-
-def get_nested_value(
-    data: Dict[str, Any], path: str, default: Any = None
-) -> Any:
-    """Retrieve a nested value from a dictionary using dot notation."""
-    if not isinstance(data, dict):
-        return default
-    keys = path.split(".")
-    current = data
-    for key in keys:
-        if isinstance(current, dict):
-            current = current.get(key)
-        else:
-            return default
-        if current is None:
-            return default
-    return current
+def retry_network_operation(retries: int = 3, delay: float = 1.0, exceptions: Tuple[Type[Exception], ...] = (ConnectionError, TimeoutError)):
+    """
+    Decorator to retry network-bound operations with exponential backoff.
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_exception = None
+            current_delay = delay
+            
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= 2
+            
+            logger.error(f"Operation failed after {retries} attempts.")
+            raise last_exception
+        return wrapper
+    return decorator
