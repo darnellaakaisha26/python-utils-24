@@ -6,42 +6,45 @@ from typing import Optional
 
 def setup_logger(
     name: str = "app",
-    log_file: str = "app.log",
+    log_file: str = "logs/app.log",
     level: int = logging.INFO,
     max_bytes: int = 5 * 1024 * 1024,
     backup_count: int = 5,
-    log_to_console: bool = True,
+    log_format: Optional[str] = None,
 ) -> logging.Logger:
-    """Configures and returns a logger with rotating file and optional console handlers."""
+    """Configures and returns a logger with standard console and rotating file output."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent adding duplicate handlers if logger is configured multiple times
+    # Prevent duplicate handlers if setup_logger is called multiple times
     if logger.handlers:
         return logger
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - [%(levelname)s] - %(message)s"
-    )
+    if log_format is None:
+        log_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
-    # Ensure directory exists for log file
+    formatter = logging.Formatter(log_format)
+
+    # Console Output Handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # Ensure destination log directory exists
     log_dir = os.path.dirname(log_file)
-    if log_dir and not os.path.exists(log_dir):
+    if log_dir:
         os.makedirs(log_dir, exist_ok=True)
 
-    # Set up rotating file handler
+    # Rotating File Output Handler
     file_handler = RotatingFileHandler(
-        log_file, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8"
+        filename=log_file,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding="utf-8",
     )
-    file_handler.setFormatter(formatter)
     file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
-
-    # Optionally set up console handler
-    if log_to_console:
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        console_handler.setLevel(level)
-        logger.addHandler(console_handler)
 
     return logger
