@@ -1,34 +1,33 @@
-import time
-import functools
 import logging
-from typing import Callable, Any, Type
 
+# Configure logger for module
 logger = logging.getLogger(__name__)
 
-def retry_on_failure(exceptions: tuple[Type[Exception], ...], 
-                     max_retries: int = 3, 
-                     delay: float = 1.0) -> Callable:
-    """Decorator for retrying functions on specific exceptions."""
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            for attempt in range(max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    if attempt < max_retries:
-                        time.sleep(delay * (2 ** attempt))
-                        logger.warning(f"Retry {attempt + 1}/{max_retries} due to {e}")
-                    else:
-                        logger.error("Max retries reached")
-            raise last_exception  # type: ignore
-        return wrapper
-    return decorator
+def validate_input(data):
+    """Ensures input is a non-empty dictionary."""
+    if not isinstance(data, dict):
+        raise ValueError("Input must be a dictionary")
+    if not data:
+        raise ValueError("Input dictionary cannot be empty")
+    return True
 
-@retry_on_failure(exceptions=(ConnectionError, TimeoutError), max_retries=3)
-def fetch_data(url: str) -> str:
-    """Example function that might fail due to network."""
-    # Simulating a network operation
-    return f"Data from {url}"
+def process_main_loop(data_stream):
+    """
+    Core loop for processing stream entries with
+    mandatory input validation checks.
+    """
+    for entry in data_stream:
+        try:
+            # Verify entry integrity before processing
+            if validate_input(entry):
+                # Simulated business logic
+                result = entry.get('value', 0) * 2
+                logger.info(f"Processed item with result: {result}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"Skipping invalid entry: {e}")
+            continue
+
+if __name__ == "__main__":
+    # Demonstration of processing
+    sample_data = [{'value': 10}, {}, "invalid", {'value': 20}]
+    process_main_loop(sample_data)
