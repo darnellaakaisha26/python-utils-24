@@ -1,39 +1,45 @@
 import time
-import random
 from functools import wraps
-from typing import Callable, Any, Tuple, Type
+from typing import Any, Dict, Callable, Type, Tuple, Union
+
+def deep_merge(dict_a: Dict[Any, Any], dict_b: Dict[Any, Any]) -> Dict[Any, Any]:
+    """
+    Recursively merges dict_b into dict_a.
+
+    Values from dict_b will overwrite dict_a if keys conflict and values are not dicts.
+    """
+    result = dict_a.copy()
+    for key, value in dict_b.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
 def retry(
-    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
-    tries: int = 4,
+    exceptions: Union[Type[BaseException], Tuple[Type[BaseException], ...]],
+    tries: int = 3,
     delay: float = 1.0,
-    backoff: float = 2.0,
-    jitter: bool = True
+    backoff: float = 2.0
 ) -> Callable:
     """
-    Decorator to retry a function with exponential backoff and jitter.
+    Decorator that retries a function if specified exceptions are raised.
 
-    :param exceptions: Exception(s) that trigger a retry.
-    :param tries: Total number of attempts before giving up.
-    :param delay: Initial delay between retries in seconds.
-    :param backoff: Multiplier applied to delay after each failure.
-    :param jitter: If True, adds random variation to the delay.
+    Uses exponential backoff by default.
     """
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            _tries, _delay = tries, delay
-            while _tries > 1:
+            attempt, current_delay = 0, delay
+            while attempt < tries:
                 try:
                     return func(*args, **kwargs)
-                except exceptions:
-                    sleep_time = _delay
-                    if jitter:
-                        sleep_time *= random.uniform(0.5, 1.5)
-                    time.sleep(sleep_time)
-                    _tries -= 1
-                    _delay *= backoff
-            # Final attempt that raises the error if it fails
+                except exceptions as e:
+                    attempt += 1
+                    if attempt >= tries:
+                        raise e
+                    time.sleep(current_delay)
+                    current_delay *= backoff
             return func(*args, **kwargs)
         return wrapper
     return decorator
