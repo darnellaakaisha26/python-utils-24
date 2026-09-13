@@ -1,47 +1,31 @@
-"""General helper utilities for common Python data structures and operations."""
+import json
+import os
+from typing import Any, Dict, Optional
 
-import re
-from typing import Any, Dict, Generator, Iterable, List, Optional, TypeVar
+def load_json_file(file_path: str) -> Dict[str, Any]:
+    """Reads and parses a JSON file into a dictionary."""
+    if not os.path.exists(file_path):
+        return {}
+    with open(file_path, 'r', encoding='utf-8') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
 
-T = TypeVar("T")
-
-
-def chunk_iterable(iterable: Iterable[T], chunk_size: int) -> Generator[List[T], None, None]:
-    """Yield successive n-sized chunks from an iterable."""
-    if chunk_size <= 0:
-        raise ValueError("Chunk size must be greater than zero")
-    
-    chunk: List[T] = []
-    for item in iterable:
-        chunk.append(item)
-        if len(chunk) == chunk_size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
-
-
-def deep_merge_dicts(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge two dictionaries without mutating the inputs."""
-    result = dict1.copy()
-    for key, value in dict2.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge_dicts(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def safe_cast(val: Any, to_type: type, default: Optional[Any] = None) -> Any:
-    """Safely cast a value to a target type, returning default on failure."""
+def save_json_file(file_path: str, data: Dict[str, Any]) -> bool:
+    """Serializes a dictionary to a JSON file."""
     try:
-        return to_type(val)
-    except (ValueError, TypeError):
-        return default
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except (IOError, TypeError):
+        return False
 
+def chunk_list(data: list, size: int):
+    """Splits a list into smaller chunks of specific size."""
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
 
-def slugify(text: str) -> str:
-    """Normalize string, remove non-alphanumeric chars, and convert spaces to hyphens."""
-    text = text.lower().strip()
-    text = re.sub(r"[^\w\s-]", "", text)
-    return re.sub(r"[-\s]+", "-", text)
+def get_env_variable(key: str, default: Optional[str] = None) -> str:
+    """Retrieves environment variable with optional default fallback."""
+    return os.environ.get(key, default or "")
