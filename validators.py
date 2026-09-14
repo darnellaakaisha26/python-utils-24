@@ -1,31 +1,36 @@
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Optional
 
-def validate_input_schema(data: Any, required_fields: List[str]) -> bool:
-    """Validates that input is a dictionary and contains required keys."""
-    if not isinstance(data, dict):
-        return False
-    return all(field in data for field in required_fields)
+def is_email(email: str) -> bool:
+    """Validate standard email format."""
+    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    return bool(re.match(pattern, email))
 
-def sanitize_numeric_input(value: Any, min_val: int = 0, max_val: int = 1000) -> Optional[int]:
-    """Converts input to int and enforces range boundaries."""
+def is_not_empty(value: Any) -> bool:
+    """Check if string or collection is non-empty."""
+    return bool(value and len(str(value).strip()) > 0)
+
+def is_integer(value: Any) -> bool:
+    """Determine if value is a valid integer representation."""
     try:
-        val = int(value)
-        if min_val <= val <= max_val:
-            return val
+        int(value)
+        return True
     except (ValueError, TypeError):
-        pass
-    return None
+        return False
 
-def validate_processing_loop(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Filters a list of inputs based on schema and value constraints."""
-    valid_items = []
-    required = ['id', 'value']
-    
-    for item in data:
-        if validate_input_schema(item, required):
-            clean_val = sanitize_numeric_input(item['value'])
-            if clean_val is not None:
-                item['value'] = clean_val
-                valid_items.append(item)
-    
-    return valid_items
+def validate_length(value: str, min_len: int = 0, max_len: Optional[int] = None) -> bool:
+    """Ensure string length within boundaries."""
+    if not isinstance(value, str):
+        return False
+    length = len(value)
+    if max_len is not None:
+        return min_len <= length <= max_len
+    return length >= min_len
+
+def sanitize_input(value: str) -> str:
+    """Remove whitespace and escape potential script tags."""
+    if not isinstance(value, str):
+        return ''
+    clean = value.strip()
+    clean = clean.replace('<', '&lt;').replace('>', '&gt;')
+    return clean
