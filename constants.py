@@ -1,33 +1,29 @@
-import os
-from typing import Final
+from typing import Final, Dict
 
-# Application path configurations
-BASE_DIR: Final[str] = os.path.dirname(os.path.abspath(__file__))
-LOG_DIR: Final[str] = os.path.join(BASE_DIR, 'logs')
+# Standard error exit codes for application lifecycle management
+EXIT_SUCCESS: Final[int] = 0
+EXIT_FAILURE: Final[int] = 1
+EXIT_INVALID_CONFIG: Final[int] = 2
+EXIT_NETWORK_TIMEOUT: Final[int] = 3
 
-# Default operation timeouts
-DEFAULT_TIMEOUT: Final[int] = 30
-MAX_RETRIES: Final[int] = 3
-
-# Supported data formats
-SUPPORTED_EXTENSIONS: Final[set] = {'.json', '.yaml', '.yml', '.csv'}
-
-# Standard HTTP headers
-DEFAULT_HEADERS: Final[dict] = {
-    'Content-Type': 'application/json',
-    'User-Agent': 'python-utils-24-client'
+# Mapping of exception types to human-readable error messages
+ERROR_MESSAGES: Final[Dict[str, str]] = {
+    "connection_error": "Failed to establish network connection. Please check your firewall.",
+    "config_error": "Configuration file missing or contains invalid syntax.",
+    "timeout_error": "Operation timed out while waiting for a response.",
+    "permission_error": "Insufficient permissions to access the required resource.",
+    "unexpected_error": "An unforeseen error occurred. Please contact the administrator."
 }
 
-# Error and status messaging templates
-STATUS_SUCCESS: Final[str] = 'OPERATION_SUCCESS'
-STATUS_FAILURE: Final[str] = 'OPERATION_FAILURE'
+# Thresholds for resource monitoring to prevent memory exhaustion
+MAX_RETRY_ATTEMPTS: Final[int] = 5
+DEFAULT_TIMEOUT_SECONDS: Final[float] = 30.0
+MAX_BUFFER_SIZE_BYTES: Final[int] = 1048576  # 1MB limit for buffers
 
-class AppDefaults:
-    """Container for environmental application defaults."""
-    MAX_WORKERS: int = 4
-    BUFFER_SIZE: int = 1024
-    ENCODING: str = 'utf-8'
+# System wide configuration status flags
+IS_DEBUG_MODE: Final[bool] = False
+DEFAULT_ENCODING: Final[str] = "utf-8"
 
-def get_timeout() -> int:
-    """Retrieve timeout from environment or default."""
-    return int(os.getenv('APP_TIMEOUT', DEFAULT_TIMEOUT))
+def get_error_message(key: str) -> str:
+    """Return safe error description from constant mapping."""
+    return ERROR_MESSAGES.get(key, ERROR_MESSAGES["unexpected_error"])
