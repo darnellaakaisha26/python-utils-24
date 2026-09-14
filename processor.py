@@ -1,43 +1,44 @@
-import logging
-from typing import Any, Dict, List, Optional
+from typing import List, Dict, Optional, Any
 
-logger = logging.getLogger(__name__)
+def clean_data(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Sanitize a list of dictionaries by removing null values.
 
-class DataProcessor:
-    """Handles batch processing of application records."""
+    Args:
+        data: List of dictionaries to be processed.
 
-    def __init__(self, settings: Optional[Dict[str, Any]] = None):
-        self.settings = settings or {}
-        self.batch_size = self.settings.get('batch_size', 100)
+    Returns:
+        A cleaned list of dictionaries with null keys removed.
+    """
+    return [{k: v for k, v in entry.items() if v is not None} for entry in data]
 
-    def clean_data(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Sanitizes record keys and filters out empty values."""
-        cleaned = []
-        for record in records:
-            item = {k.strip().lower(): v for k, v in record.items() if v is not None}
-            if item:
-                cleaned.append(item)
-        return cleaned
+def transform_keys(data: Dict[str, Any], mapping: Dict[str, str]) -> Dict[str, Any]:
+    """
+    Rename keys in a dictionary based on a mapping.
 
-    def process_batch(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Organizes and validates chunks of data."""
-        if not data:
-            return []
-        
-        try:
-            processed = self.clean_data(data)
-            logger.info(f"Processed {len(processed)} records successfully")
-            return processed
-        except Exception as e:
-            logger.error(f"Batch processing failure: {str(e)}")
-            return []
+    Args:
+        data: The input dictionary to modify.
+        mapping: A map of {old_key: new_key}.
 
-    def transform(self, records: List[Dict[str, Any]]) -> Dict[int, List[Dict[str, Any]]]:
-        """Groups processed records by internal category."""
-        results = {}
-        for record in self.process_batch(records):
-            cat_id = record.get('category_id', 0)
-            if cat_id not in results:
-                results[cat_id] = []
-            results[cat_id].append(record)
-        return results
+    Returns:
+        A dictionary with transformed keys.
+    """
+    return {mapping.get(k, k): v for k, v in data.items()}
+
+def batch_process(items: List[Any], func: callable, chunk_size: int = 10) -> List[Any]:
+    """
+    Process a large list in smaller batches.
+
+    Args:
+        items: List of elements to process.
+        func: Callback function to apply to each item.
+        chunk_size: Number of items per batch.
+
+    Returns:
+        A list of results from the function calls.
+    """
+    results = []
+    for i in range(0, len(items), chunk_size):
+        batch = items[i:i + chunk_size]
+        results.extend([func(item) for item in batch])
+    return results
