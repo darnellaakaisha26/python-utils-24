@@ -1,22 +1,31 @@
-from typing import Any, Optional, Union
+from typing import Any, Dict, List, Optional
 
-def validate_email(email: str) -> bool:
-    """Validate string format for a standard email address."""
-    if not isinstance(email, str) or "@" not in email:
+def validate_input_schema(data: Any, required_fields: List[str]) -> bool:
+    """Validates that input is a dictionary and contains required keys."""
+    if not isinstance(data, dict):
         return False
-    parts = email.split("@")
-    return len(parts) == 2 and all(parts)
+    return all(field in data for field in required_fields)
 
-def validate_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
-    """Check if numeric value falls within inclusive range."""
-    return min_val <= value <= max_val
+def sanitize_numeric_input(value: Any, min_val: int = 0, max_val: int = 1000) -> Optional[int]:
+    """Converts input to int and enforces range boundaries."""
+    try:
+        val = int(value)
+        if min_val <= val <= max_val:
+            return val
+    except (ValueError, TypeError):
+        pass
+    return None
 
-def ensure_list(data: Any, default: Optional[list] = None) -> list:
-    """Coerce input into list or return provided default."""
-    if isinstance(data, list):
-        return data
-    return default if default is not None else []
-
-def is_not_empty(value: Optional[str]) -> bool:
-    """Verify that string is not None and not whitespace."""
-    return bool(value and value.strip())
+def validate_processing_loop(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Filters a list of inputs based on schema and value constraints."""
+    valid_items = []
+    required = ['id', 'value']
+    
+    for item in data:
+        if validate_input_schema(item, required):
+            clean_val = sanitize_numeric_input(item['value'])
+            if clean_val is not None:
+                item['value'] = clean_val
+                valid_items.append(item)
+    
+    return valid_items
