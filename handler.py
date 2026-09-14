@@ -1,31 +1,41 @@
-from typing import Any, Dict, List, Optional
-import json
+import logging
+from typing import Any, Callable, Optional
 
-def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """
-    Flattens a nested dictionary into a single-level dictionary.
-    Useful for processing configuration files or API responses.
-    """
-    items: List[tuple] = []
-    for k, v in data.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+logger = logging.getLogger(__name__)
 
-def safe_json_load(content: str, default: Optional[Dict] = None) -> Dict[str, Any]:
+def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
     """
-    Attempts to parse JSON string, returning a default dict on failure.
+    Executes a callable safely by catching common exceptions.
+    Returns the default value if an error occurs.
     """
     try:
-        return json.loads(content)
-    except (json.JSONDecodeError, TypeError):
-        return default or {}
+        return func(*args, **kwargs)
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.error(f"Execution error in {func.__name__}: {e}")
+        return default
+    except Exception as e:
+        logger.critical(f"Unexpected system error in {func.__name__}: {e}", exc_info=True)
+        return default
 
-def sanitize_keys(data: Dict[str, Any], prefix: str = 'clean_') -> Dict[str, Any]:
+def validate_input_data(data: Any, expected_type: type) -> bool:
     """
-    Appends a prefix to keys in a dictionary for data safety.
+    Validates input type and content before processing.
     """
-    return {f"{prefix}{k}": v for k, v in data.items()}
+    if data is None:
+        return False
+    if not isinstance(data, expected_type):
+        logger.warning(f"Invalid input type: expected {expected_type}, got {type(data)}")
+        return False
+    return True
+
+def process_with_fallback(items: list, processor: Callable, fallback_val: Any = None) -> list:
+    """
+    Processes list items with individual error shielding.
+    """
+    results = []
+    for item in items:
+        try:
+            results.append(processor(item))
+        except Exception:
+            results.append(fallback_val)
+    return results
