@@ -1,35 +1,43 @@
-import json
-import os
-from typing import Any, Dict, Optional
+import logging
+from typing import Any, Dict, List, Optional
 
-def read_json_file(filepath: str) -> Dict[str, Any]:
-    """Loads data from a JSON file safely."""
-    if not os.path.exists(filepath):
-        return {}
-    with open(filepath, 'r', encoding='utf-8') as f:
+logger = logging.getLogger(__name__)
+
+class DataProcessor:
+    """Handles batch processing of application records."""
+
+    def __init__(self, settings: Optional[Dict[str, Any]] = None):
+        self.settings = settings or {}
+        self.batch_size = self.settings.get('batch_size', 100)
+
+    def clean_data(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Sanitizes record keys and filters out empty values."""
+        cleaned = []
+        for record in records:
+            item = {k.strip().lower(): v for k, v in record.items() if v is not None}
+            if item:
+                cleaned.append(item)
+        return cleaned
+
+    def process_batch(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Organizes and validates chunks of data."""
+        if not data:
+            return []
+        
         try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return {}
+            processed = self.clean_data(data)
+            logger.info(f"Processed {len(processed)} records successfully")
+            return processed
+        except Exception as e:
+            logger.error(f"Batch processing failure: {str(e)}")
+            return []
 
-def write_json_file(filepath: str, data: Dict[str, Any]) -> bool:
-    """Saves dictionary to a JSON file."""
-    try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except (IOError, TypeError):
-        return False
-
-def slugify(text: str) -> str:
-    """Converts string to a URL-friendly format."""
-    return "-".join(text.lower().split()).replace(" ", "-")
-
-def get_env_var(key: str, default: Optional[str] = None) -> str:
-    """Retrieves environment variable with fallback."""
-    return os.environ.get(key, default or "")
-
-def chunk_list(data: list, size: int):
-    """Splits a list into smaller chunks."""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
+    def transform(self, records: List[Dict[str, Any]]) -> Dict[int, List[Dict[str, Any]]]:
+        """Groups processed records by internal category."""
+        results = {}
+        for record in self.process_batch(records):
+            cat_id = record.get('category_id', 0)
+            if cat_id not in results:
+                results[cat_id] = []
+            results[cat_id].append(record)
+        return results
