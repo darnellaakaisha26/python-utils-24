@@ -1,39 +1,28 @@
-import functools
-from typing import Callable, Any, Dict
+import re
+from typing import Any, Optional
 
-_memoization_cache: Dict[tuple, Any] = {}
+def is_email(value: str) -> bool:
+    """Validate standard email format."""
+    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    return bool(re.match(pattern, value))
 
-def memoize_validator(func: Callable) -> Callable:
-    """Performance optimization for repeated validation checks."""
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _memoization_cache:
-            _memoization_cache[key] = func(*args, **kwargs)
-        return _memoization_cache[key]
-    return wrapper
-
-@memoize_validator
-def validate_schema_structure(data: dict) -> bool:
-    """Checks basic dictionary schema constraints efficiently."""
-    if not isinstance(data, dict):
+def is_not_empty(value: Any) -> bool:
+    """Check if input has non-zero length."""
+    if value is None:
         return False
-    return len(data) > 0 and all(isinstance(k, str) for k in data.keys())
+    return len(str(value).strip()) > 0
 
-def clear_validation_cache() -> None:
-    """Resets cache to manage memory footprint."""
-    _memoization_cache.clear()
+def is_numeric_range(value: Any, min_val: float, max_val: float) -> bool:
+    """Check if number falls within bounds."""
+    try:
+        num = float(value)
+        return min_val <= num <= max_val
+    except (ValueError, TypeError):
+        return False
 
-class ValidationRegistry:
-    """Thread-safe registry for validator management."""
-    def __init__(self):
-        self._validators = {}
-
-    def register(self, name: str, func: Callable):
-        self._validators[name] = func
-
-    def run(self, name: str, *args, **kwargs) -> Any:
-        validator = self._validators.get(name)
-        if validator:
-            return validator(*args, **kwargs)
-        raise ValueError(f"Validator {name} not found")
+def sanitize_string(value: str, max_length: Optional[int] = None) -> str:
+    """Remove whitespace and truncate string."""
+    clean = str(value).strip()
+    if max_length:
+        return clean[:max_length]
+    return clean
