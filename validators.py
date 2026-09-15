@@ -1,44 +1,23 @@
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-def validate_payload(data: Dict[str, Any]) -> bool:
-    """
-    Validates core input structure and data types.
-    Ensures required keys are present and data formats are valid.
-    """
-    required_keys = {'id', 'value', 'timestamp'}
-    if not all(key in data for key in required_keys):
+def validate_input(data: Any, expected_type: type, pattern: Optional[str] = None) -> bool:
+    """checks if data matches required type and regex"""
+    if not isinstance(data, expected_type):
         return False
-
-    if not isinstance(data['id'], str) or not re.match(r'^[a-z0-9-]+$', data['id']):
-        return False
-
-    if not isinstance(data['value'], (int, float)):
-        return False
-
-    if not isinstance(data['timestamp'], int) or data['timestamp'] <= 0:
-        return False
-
+    
+    if pattern and isinstance(data, str):
+        if not re.match(pattern, data):
+            return False
+            
     return True
 
-def sanitize_input(data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Cleans input data by stripping whitespace and enforcing types.
-    """
-    return {
-        'id': str(data['id']).strip().lower(),
-        'value': float(data['value']),
-        'timestamp': int(data['timestamp'])
-    }
-
-def process_with_validation(raw_data: Any) -> Optional[Dict[str, Any]]:
-    """
-    Wrapper for validation logic in the main processing loop.
-    """
-    if not isinstance(raw_data, dict):
-        return None
-
-    if validate_payload(raw_data):
-        return sanitize_input(raw_data)
-
-    return None
+def sanitize_payload(payload: dict) -> dict:
+    """strips whitespace and validates common fields"""
+    sanitized = {}
+    for key, value in payload.items():
+        if isinstance(value, str):
+            sanitized[key] = value.strip()
+        else:
+            sanitized[key] = value
+    return sanitized
