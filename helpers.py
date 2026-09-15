@@ -1,31 +1,33 @@
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-def load_json_file(file_path: str) -> Dict[str, Any]:
-    """Reads and parses a JSON file into a dictionary."""
-    if not os.path.exists(file_path):
-        return {}
-    with open(file_path, 'r', encoding='utf-8') as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return {}
+def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Loads configuration from a JSON file, falling back to defaults for missing keys.
+    """
+    config = defaults.copy()
 
-def save_json_file(file_path: str, data: Dict[str, Any]) -> bool:
-    """Serializes a dictionary to a JSON file."""
+    if not os.path.exists(filepath):
+        return config
+
     try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                config.update(data)
+    except (json.JSONDecodeError, IOError):
+        pass
+
+    return config
+
+def save_config(filepath: str, config: Dict[str, Any]) -> bool:
+    """
+    Saves a configuration dictionary to a JSON file.
+    """
+    try:
+        with open(filepath, 'w') as f:
+            json.dump(config, f, indent=4)
         return True
-    except (IOError, TypeError):
+    except IOError:
         return False
-
-def chunk_list(data: list, size: int):
-    """Splits a list into smaller chunks of specific size."""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
-
-def get_env_variable(key: str, default: Optional[str] = None) -> str:
-    """Retrieves environment variable with optional default fallback."""
-    return os.environ.get(key, default or "")
