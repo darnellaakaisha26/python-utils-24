@@ -1,32 +1,34 @@
-import time
 import functools
-import logging
+import time
+from typing import Callable, Any, Dict
 
-logger = logging.getLogger(__name__)
+# Cache for compute-intensive function results to improve throughput
+_memoization_cache: Dict[tuple, Any] = {}
 
-def retry(max_attempts=3, delay=1.0, exceptions=(Exception,)):
-    """Decorator to retry a function if it raises specified exceptions."""
-    def decorator(func):
+def memoize(func: Callable) -> Callable:
+    """Decorator to cache function results based on arguments."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _memoization_cache:
+            _memoization_cache[key] = func(*args, **kwargs)
+        return _memoization_cache[key]
+    return wrapper
+
+class PerformanceOptimizer:
+    """Utility class for execution time tracking and optimization."""
+    @staticmethod
+    def profile_execution(func: Callable) -> Callable:
+        """Logs execution duration for performance analysis."""
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        logger.error(f"Final attempt {attempts} failed: {e}")
-                        raise
-                    
-                    logger.warning(f"Attempt {attempts} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
+        def wrapper(*args, **kwargs) -> Any:
+            start_time = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start_time
+            print(f"DEBUG: {func.__name__} executed in {duration:.4f}s")
+            return result
         return wrapper
-    return decorator
 
-@retry(max_attempts=3, delay=2.0)
-def fetch_url_data(url):
-    """Example network operation function."""
-    # Simulating network call
-    print(f"Fetching data from {url}...")
-    raise ConnectionError("Server unreachable")
+def clear_cache() -> None:
+    """Manual trigger to clear memory of cached results."""
+    _memoization_cache.clear()
