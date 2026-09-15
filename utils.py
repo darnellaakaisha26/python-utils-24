@@ -1,35 +1,35 @@
-import os
-import logging
-from typing import Any, List, Optional
+import functools
+import time
+from typing import Callable, Any, Dict
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('python-utils-24')
+# Internal cache storage for function results
+_CACHE: Dict[str, Any] = {}
 
-def clean_temp_files(directory: str, pattern: str = '.tmp') -> int:
-    """Removes files with specific suffix in target directory."""
-    count = 0
-    if not os.path.exists(directory):
-        return 0
+def memoize(func: Callable) -> Callable:
+    """Performance optimization: cache function results based on arguments."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = f"{func.__name__}:{args}:{tuple(sorted(kwargs.items()))}"
+        if key not in _CACHE:
+            _CACHE[key] = func(*args, **kwargs)
+        return _CACHE[key]
+    return wrapper
 
-    for filename in os.listdir(directory):
-        if filename.endswith(pattern):
-            try:
-                os.remove(os.path.join(directory, filename))
-                count += 1
-            except OSError as e:
-                logger.error(f"failed to remove {filename}: {e}")
-    
-    return count
+def batch_process(data: list, chunk_size: int = 100):
+    """Generator for efficient memory handling of large datasets."""
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
 
-def batch_process(items: List[Any], chunk_size: int) -> List[List[Any]]:
-    """Reorganizes items into equal chunks for processing."""
-    if chunk_size <= 0:
-        return [items]
-    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+class PerformanceTimer:
+    """Context manager for tracking block execution time."""
+    def __init__(self, label: str = "Operation"):
+        self.label = label
+        self.start = 0.0
 
-def get_env_var(key: str, default: Optional[str] = None) -> str:
-    """Safe access to environment configuration variables."""
-    return os.environ.get(key, default or '')
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
 
-if __name__ == '__main__':
-    logger.info("utils initialized successfully")
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        elapsed = time.perf_counter() - self.start
+        print(f"{self.label} took {elapsed:.4f} seconds")
