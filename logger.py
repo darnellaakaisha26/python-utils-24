@@ -1,25 +1,34 @@
 import logging
-import sys
-from typing import Optional
+import os
+from logging.handlers import RotatingFileHandler
 
-class AppLogger:
-    def __init__(self, name: str = 'python-utils-24', level: int = logging.INFO):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        self._setup_handler()
+def setup_logger(name='app_logger', log_file='app.log', level=logging.INFO):
+    """Initializes a rotating file logger for the application."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    def _setup_handler(self) -> None:
-        if not self.logger.handlers:
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            stream_handler = logging.StreamHandler(sys.stdout)
-            stream_handler.setFormatter(formatter)
-            self.logger.addHandler(stream_handler)
+    # Prevent duplicate handlers if function is called multiple times
+    if not logger.handlers:
+        # Format: timestamp - name - level - message
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    def get_logger(self) -> logging.Logger:
-        return self.logger
+        # RotatingFileHandler: 5MB per file, keep 3 backups
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5 * 1024 * 1024, 
+            backupCount=3
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
-def get_default_logger(name: Optional[str] = None) -> logging.Logger:
-    instance = AppLogger(name or 'python-utils-24')
-    return instance.get_logger()
+        # Optional: Add console output
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
+
+    return logger
+
+# Example usage for verification
+if __name__ == '__main__':
+    log = setup_logger()
+    log.info('Logger initialized successfully')
