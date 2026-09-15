@@ -1,30 +1,33 @@
-import json
 import os
+import json
 from typing import Any, Dict
 
-def load_config(file_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Loads configuration from a JSON file with provided defaults.
-    Returns a merged dictionary where file values override defaults.
-    """
-    config = defaults.copy()
+DEFAULT_CONFIG = {
+    "host": "localhost",
+    "port": 8080,
+    "debug": False
+}
 
-    if not os.path.exists(file_path):
-        return config
-
-    try:
-        with open(file_path, 'r') as f:
-            user_config = json.load(f)
-            if isinstance(user_config, dict):
+def load_config(filepath: str = "config.json") -> Dict[str, Any]:
+    """Loads JSON configuration with system defaults fallback."""
+    config = DEFAULT_CONFIG.copy()
+    
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r") as f:
+                user_config = json.load(f)
                 config.update(user_config)
-    except (json.JSONDecodeError, IOError):
-        pass
-
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: failed to load {filepath}: {e}")
+            
     return config
 
-def save_config(file_path: str, config: Dict[str, Any]) -> None:
-    """
-    Persists dictionary to a JSON file.
-    """
-    with open(file_path, 'w') as f:
-        json.dump(config, f, indent=4)
+def get_env_override(key: str, default: Any) -> Any:
+    """Fetches value from environment variables if present."""
+    return os.environ.get(key.upper(), default)
+
+if __name__ == "__main__":
+    # Example usage
+    current_config = load_config()
+    current_config["port"] = get_env_override("PORT", current_config["port"])
+    print(f"Loaded configuration: {current_config}")
