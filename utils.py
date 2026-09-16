@@ -1,35 +1,26 @@
-import functools
 import time
-from typing import Callable, Any, Dict
+import functools
+import logging
+from typing import Callable, Any
 
-# Internal cache storage for function results
-_CACHE: Dict[str, Any] = {}
+logger = logging.getLogger(__name__)
 
-def memoize(func: Callable) -> Callable:
-    """Performance optimization: cache function results based on arguments."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = f"{func.__name__}:{args}:{tuple(sorted(kwargs.items()))}"
-        if key not in _CACHE:
-            _CACHE[key] = func(*args, **kwargs)
-        return _CACHE[key]
-    return wrapper
-
-def batch_process(data: list, chunk_size: int = 100):
-    """Generator for efficient memory handling of large datasets."""
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
-
-class PerformanceTimer:
-    """Context manager for tracking block execution time."""
-    def __init__(self, label: str = "Operation"):
-        self.label = label
-        self.start = 0.0
-
-    def __enter__(self):
-        self.start = time.perf_counter()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        elapsed = time.perf_counter() - self.start
-        print(f"{self.label} took {elapsed:.4f} seconds")
+def retry_network_op(retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """Decorator to retry network-bound operations with exponential backoff."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            current_delay = delay
+            for attempt in range(1, retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == retries:
+                        logger.error(f"Final attempt {attempt} failed for {func.__name__}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+        return wrapper
+    return decorator
