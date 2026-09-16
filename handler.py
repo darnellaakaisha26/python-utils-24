@@ -1,41 +1,29 @@
-import logging
-from typing import Any, Callable, Optional
+from typing import Any, Dict, Optional, Callable
 
-logger = logging.getLogger(__name__)
+class DataHandler:
+    """Utility class for processing dictionaries with functional hooks."""
 
-def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
-    """
-    Executes a callable safely by catching common exceptions.
-    Returns the default value if an error occurs.
-    """
-    try:
-        return func(*args, **kwargs)
-    except (ValueError, TypeError, AttributeError) as e:
-        logger.error(f"Execution error in {func.__name__}: {e}")
-        return default
-    except Exception as e:
-        logger.critical(f"Unexpected system error in {func.__name__}: {e}", exc_info=True)
-        return default
+    def __init__(self, settings: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize handler with optional settings mapping."""
+        self.settings = settings or {}
 
-def validate_input_data(data: Any, expected_type: type) -> bool:
-    """
-    Validates input type and content before processing.
-    """
-    if data is None:
-        return False
-    if not isinstance(data, expected_type):
-        logger.warning(f"Invalid input type: expected {expected_type}, got {type(data)}")
-        return False
-    return True
+    def execute(self, payload: Dict[str, Any], callback: Optional[Callable[[Any], Any]] = None) -> Dict[str, Any]:
+        """Apply processing logic to payload and optional callback transformation."""
+        processed_data: Dict[str, Any] = payload.copy()
+        
+        # Apply core transformations based on settings
+        if self.settings.get("strip_whitespace", False):
+            processed_data = {k: str(v).strip() for k, v in processed_data.items()}
+            
+        if callback:
+            return {k: callback(v) for k, v in processed_data.items()}
+            
+        return processed_data
 
-def process_with_fallback(items: list, processor: Callable, fallback_val: Any = None) -> list:
-    """
-    Processes list items with individual error shielding.
-    """
-    results = []
-    for item in items:
-        try:
-            results.append(processor(item))
-        except Exception:
-            results.append(fallback_val)
-    return results
+    def update_settings(self, key: str, value: Any) -> None:
+        """Update specific internal configuration key-value pairs."""
+        self.settings[key] = value
+
+def create_handler(config: Optional[Dict[str, Any]] = None) -> DataHandler:
+    """Factory function for creating pre-configured DataHandler instances."""
+    return DataHandler(settings=config)
