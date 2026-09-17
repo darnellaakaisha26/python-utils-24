@@ -1,44 +1,40 @@
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, Generator, Iterable, List
 
-def clean_data(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
     """
-    Sanitize a list of dictionaries by removing null values.
-
+    Recursively flattens a nested dictionary into a single-level dictionary.
+    
     Args:
-        data: List of dictionaries to be processed.
-
-    Returns:
-        A cleaned list of dictionaries with null keys removed.
+        data: The nested dictionary to flatten.
+        parent_key: The prefix key string (used internally for recursion).
+        sep: Separator between nested keys.
     """
-    return [{k: v for k, v in entry.items() if v is not None} for entry in data]
+    items: List[tuple] = []
+    for key, value in data.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
 
-def transform_keys(data: Dict[str, Any], mapping: Dict[str, str]) -> Dict[str, Any]:
+
+def chunk_iterable(iterable: Iterable[Any], chunk_size: int) -> Generator[List[Any], None, None]:
     """
-    Rename keys in a dictionary based on a mapping.
-
+    Yields successive chunks of a given size from an iterable.
+    
     Args:
-        data: The input dictionary to modify.
-        mapping: A map of {old_key: new_key}.
-
-    Returns:
-        A dictionary with transformed keys.
+        iterable: The collection or stream of data.
+        chunk_size: Maximum size of each yielded chunk.
     """
-    return {mapping.get(k, k): v for k, v in data.items()}
-
-def batch_process(items: List[Any], func: callable, chunk_size: int = 10) -> List[Any]:
-    """
-    Process a large list in smaller batches.
-
-    Args:
-        items: List of elements to process.
-        func: Callback function to apply to each item.
-        chunk_size: Number of items per batch.
-
-    Returns:
-        A list of results from the function calls.
-    """
-    results = []
-    for i in range(0, len(items), chunk_size):
-        batch = items[i:i + chunk_size]
-        results.extend([func(item) for item in batch])
-    return results
+    if chunk_size <= 0:
+        raise ValueError("Chunk size must be a positive integer")
+    
+    chunk: List[Any] = []
+    for item in iterable:
+        chunk.append(item)
+        if len(chunk) == chunk_size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
