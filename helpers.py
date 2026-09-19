@@ -1,36 +1,35 @@
-import json
-import os
-from typing import Any, Dict, Optional
+from typing import Dict, Any, List, Generator
 
-def load_json(filepath: str) -> Optional[Dict[str, Any]]:
-    """Load and parse a JSON file safely."""
-    if not os.path.exists(filepath):
-        return None
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return None
+def deep_merge(dict1: Dict[Any, Any], dict2: Dict[Any, Any]) -> Dict[Any, Any]:
+    '''
+    Recursively merges dict2 into dict1.
+    '''
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
-def save_json(filepath: str, data: Dict[str, Any]) -> bool:
-    """Serialize data to a JSON file."""
-    try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except IOError:
-        return False
+def chunk_list(lst: List[Any], size: int) -> Generator[List[Any], None, None]:
+    '''
+    Yield successive n-sized chunks from a list.
+    '''
+    if size <= 0:
+        raise ValueError('Chunk size must be greater than zero.')
+    for i in range(0, len(lst), size):
+        yield lst[i : i + size]
 
-def ensure_dir(directory: str) -> None:
-    """Create directory path if it does not exist."""
-    if not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
-
-def get_env(key: str, default: Any = None) -> Any:
-    """Retrieve environment variable with fallback."""
-    return os.environ.get(key, default)
-
-def chunk_list(data: list, size: int):
-    """Split list into smaller chunks of fixed size."""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    '''
+    Flattens a nested dictionary using a separator.
+    '''
+    items = []
+    for k, v in d.items():
+        new_key = f'{parent_key}{sep}{k}' if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
