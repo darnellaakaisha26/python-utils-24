@@ -3,38 +3,27 @@ from typing import Any, Optional
 
 class DataValidator:
     """Utility class for common string and data validations."""
-    
-    EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+
+    EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
 
     @staticmethod
-    def is_valid_email(email: str) -> bool:
-        """Checks if the provided string is a valid email format."""
+    def is_valid_email(email: Any) -> bool:
+        """Verify email format using regex pattern."""
         if not isinstance(email, str):
             return False
-        return bool(DataValidator.EMAIL_REGEX.match(email))
+        return bool(DataValidator.EMAIL_PATTERN.match(email))
 
     @staticmethod
-    def is_not_empty(value: Any) -> bool:
-        """Verifies that the value is not None or empty."""
-        if value is None:
-            return False
-        if isinstance(value, (str, list, dict, set)):
-            return len(value) > 0
-        return True
+    def validate_range(value: int, min_val: int, max_val: int) -> bool:
+        """Ensure integer is within specified boundaries."""
+        return min_val <= value <= max_val
+
+    @staticmethod
+    def ensure_not_empty(data: Optional[str]) -> bool:
+        """Check if string is not None and not whitespace only."""
+        return data is not None and len(data.strip()) > 0
 
     @classmethod
-    def validate_length(cls, value: str, min_len: int, max_len: Optional[int] = None) -> bool:
-        """Checks if string length is within specified boundaries."""
-        if not isinstance(value, str):
-            return False
-        length = len(value)
-        if max_len is not None:
-            return min_len <= length <= max_len
-        return length >= min_len
-
-    @staticmethod
-    def sanitize_input(value: str) -> str:
-        """Removes leading/trailing whitespace and control characters."""
-        if not isinstance(value, str):
-            return ""
-        return value.strip().replace('\n', '').replace('\r', '')
+    def validate_payload(cls, data: dict, required_keys: list) -> bool:
+        """Verify presence of mandatory keys in dictionary."""
+        return all(key in data for key in required_keys)
