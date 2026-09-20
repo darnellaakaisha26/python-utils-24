@@ -1,28 +1,58 @@
-class UtilsError(Exception):
-    """Base exception for python-utils-24 operations."""
+"""Custom exception classes for python-utils-24.
 
-class ConfigurationError(UtilsError):
-    """Raised when configuration loading or parsing fails."""
+Provides a structured exception hierarchy to handle validation, configuration,
+and operational failures gracefully.
+"""
+
+from typing import Any, Dict, Optional
+
+
+class UtilsError(Exception):
+    """Base exception for all errors raised by the utility library."""
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.details = details or {}
+
+    def __str__(self) -> str:
+        if self.details:
+            return f"{self.message} (details: {self.details})"
+        return self.message
+
 
 class ValidationError(UtilsError):
-    """Raised when data fails a validation check."""
+    """Raised when data validation checks fail."""
 
-class ProcessingError(UtilsError):
-    """Raised when a data processor encounters an issue."""
+    def __init__(
+        self, message: str, field: Optional[str] = None, value: Any = None
+    ) -> None:
+        details = {}
+        if field is not None:
+            details["field"] = field
+        if value is not None:
+            details["value"] = value
+        super().__init__(message, details=details if details else None)
 
-def handle_exception(exc: Exception) -> None:
-    """Centralized exception reporting helper."""
-    import sys
-    import logging
 
-    logger = logging.getLogger('python-utils-24')
-    if isinstance(exc, UtilsError):
-        logger.error(f"Utility operation failed: {exc}")
-    else:
-        logger.exception("Unexpected system error occurred")
+class ConfigError(UtilsError):
+    """Raised when a configuration key or format is invalid."""
 
-def raise_if_none(value, name: str):
-    """Ensures value is not None to avoid downstream errors."""
-    if value is None:
-        raise ValidationError(f"Required parameter '{name}' cannot be None")
-    return value
+    pass
+
+
+class ProcessError(UtilsError):
+    """Raised when a background process or system command fails."""
+
+    def __init__(
+        self, 
+        message: str, 
+        exit_code: Optional[int] = None, 
+        stderr: Optional[str] = None
+    ) -> None:
+        details = {}
+        if exit_code is not None:
+            details["exit_code"] = exit_code
+        if stderr is not None:
+            details["stderr"] = stderr
+        super().__init__(message, details=details if details else None)
