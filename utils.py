@@ -1,40 +1,26 @@
+import time
+import functools
 import logging
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def validate_input(data: dict) -> bool:
-    """Ensures dictionary contains mandatory keys with non-empty values."""
-    required_keys = ['id', 'payload']
-    for key in required_keys:
-        if key not in data or not data[key]:
-            logger.error(f"missing or invalid key: {key}")
-            return False
-    return True
-
-def process_stream(data_stream: list):
-    """Main processing loop with integrated input validation."""
-    for entry in data_stream:
-        if not isinstance(entry, dict):
-            logger.warning("skipping non-dictionary input")
-            continue
-
-        if not validate_input(entry):
-            continue
-
-        try:
-            logger.info(f"processing entry: {entry['id']}")
-            # simulate downstream business logic
-            result = f"processed-{entry['payload']}"
-            print(result)
-        except Exception as e:
-            logger.exception(f"unexpected error processing entry {entry.get('id')}: {e}")
-
-if __name__ == '__main__':
-    mock_data = [
-        {'id': 1, 'payload': 'task_alpha'},
-        {'id': 2, 'payload': ''},
-        {'invalid': 'entry'},
-        {'id': 3, 'payload': 'task_beta'}
-    ]
-    process_stream(mock_data)
+def retry_network_op(retries=3, delay=1, backoff=2, exceptions=(ConnectionError, TimeoutError)):
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt == retries - 1:
+                        logger.error(f"Final attempt failed for {func.__name__}: {e}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempt + 1} failed, retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
