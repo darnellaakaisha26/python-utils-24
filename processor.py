@@ -1,40 +1,41 @@
-from typing import Any, Dict, Generator, Iterable, List
+import logging
+from typing import Any, Optional, Union
 
-def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
-    """
-    Recursively flattens a nested dictionary into a single-level dictionary.
-    
-    Args:
-        data: The nested dictionary to flatten.
-        parent_key: The prefix key string (used internally for recursion).
-        sep: Separator between nested keys.
-    """
-    items: List[tuple] = []
-    for key, value in data.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
-        if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
-        else:
-            items.append((new_key, value))
-    return dict(items)
+logger = logging.getLogger(__name__)
 
+class DataProcessor:
+    """Utility for processing raw input data with validation."""
 
-def chunk_iterable(iterable: Iterable[Any], chunk_size: int) -> Generator[List[Any], None, None]:
-    """
-    Yields successive chunks of a given size from an iterable.
-    
-    Args:
-        iterable: The collection or stream of data.
-        chunk_size: Maximum size of each yielded chunk.
-    """
-    if chunk_size <= 0:
-        raise ValueError("Chunk size must be a positive integer")
-    
-    chunk: List[Any] = []
-    for item in iterable:
-        chunk.append(item)
-        if len(chunk) == chunk_size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
+    def __init__(self, strict: bool = False):
+        self.strict = strict
+
+    def process_item(self, item: Any) -> Optional[Any]:
+        """Process a single item with error handling for edge cases."""
+        try:
+            if item is None:
+                raise ValueError("input item cannot be None")
+            
+            if not isinstance(item, (str, int, float)):
+                raise TypeError(f"unsupported data type: {type(item).__name__}")
+
+            # Simulate processing logic
+            return str(item).strip()
+
+        except (ValueError, TypeError) as e:
+            logger.error(f"processing error: {e}")
+            if self.strict:
+                raise
+            return None
+
+    def batch_process(self, items: list) -> list:
+        """Handle lists ensuring container integrity."""
+        if not isinstance(items, list):
+            logger.warning("invalid input type provided to batch processor")
+            return []
+        
+        results = []
+        for item in items:
+            res = self.process_item(item)
+            if res is not None:
+                results.append(res)
+        return results
