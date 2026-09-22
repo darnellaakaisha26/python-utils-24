@@ -1,29 +1,30 @@
-import time
 import functools
-import random
+import time
+from typing import Callable, Any, Dict
 
-def retry_operation(max_retries=3, base_delay=1.0, exceptions=(Exception,)):
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            retries = 0
-            while retries < max_retries:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    retries += 1
-                    if retries >= max_retries:
-                        raise e
-                    
-                    # Exponential backoff with jitter
-                    delay = base_delay * (2 ** (retries - 1))
-                    jitter = delay * 0.1 * random.random()
-                    time.sleep(delay + jitter)
-        return wrapper
-    return decorator
+# Cache for storing expensive function results
+_CACHE: Dict[tuple, Any] = {}
 
-# Example usage:
-# @retry_operation(max_retries=3)
-# def fetch_url(url):
-#     pass
+def memoize(func: Callable) -> Callable:
+    """Decorator to cache results of functions with hashable arguments."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (func.__name__, args, tuple(sorted(kwargs.items())))
+        if key not in _CACHE:
+            _CACHE[key] = func(*args, **kwargs)
+        return _CACHE[key]
+    return wrapper
+
+def batch_process(items: list, chunk_size: int = 100) -> list:
+    """Memory efficient chunking for large datasets."""
+    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+
+@memoize
+def compute_heavy_data(n: int) -> int:
+    """Simulation of performance-intensive calculation."""
+    time.sleep(1)
+    return sum(i * i for i in range(n))
+
+def clear_cache() -> None:
+    """Clear all cached results from memory."""
+    _CACHE.clear()
