@@ -1,31 +1,29 @@
 import time
 import functools
-import logging
-from typing import Callable, Any, Type
+import random
 
-logger = logging.getLogger(__name__)
-
-def retry_network_op(exceptions: tuple[Type[Exception], ...], 
-                     retries: int = 3, 
-                     delay: float = 1.0) -> Callable:
+def retry_operation(max_retries=3, base_delay=1.0, exceptions=(Exception,)):
     """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func: Callable) -> Callable:
+    def decorator(func):
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempt = 0
-            current_delay = delay
-            while attempt < retries:
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
-                    attempt += 1
-                    if attempt >= retries:
-                        logger.error(f"Max retries reached for {func.__name__}")
+                    retries += 1
+                    if retries >= max_retries:
                         raise e
                     
-                    logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= 2
-            return None
+                    # Exponential backoff with jitter
+                    delay = base_delay * (2 ** (retries - 1))
+                    jitter = delay * 0.1 * random.random()
+                    time.sleep(delay + jitter)
         return wrapper
     return decorator
+
+# Example usage:
+# @retry_operation(max_retries=3)
+# def fetch_url(url):
+#     pass
