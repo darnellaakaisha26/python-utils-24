@@ -1,29 +1,33 @@
-from typing import Any, Iterable, Dict, List, Optional
+import json
+import os
+from typing import Any, Dict, Optional
 
-def chunk_data(data: Iterable[Any], chunk_size: int) -> List[List[Any]]:
-    """Split an iterable into fixed-size chunks for batch processing."""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be a positive integer")
-    
-    chunk = []
-    for item in data:
-        chunk.append(item)
-        if len(chunk) == chunk_size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
+def load_json_file(file_path: str) -> Dict[str, Any]:
+    """Load and parse a JSON configuration file."""
+    if not os.path.exists(file_path):
+        return {}
+    with open(file_path, 'r', encoding='utf-8') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
 
-def deep_get(data: Dict[str, Any], path: str, default: Any = None) -> Any:
-    """Access nested dictionary values using dot-notation keys."""
-    keys = path.split('.')
-    for key in keys:
-        if isinstance(data, dict) and key in data:
-            data = data[key]
+def ensure_directory(dir_path: str) -> None:
+    """Create directory path if it does not exist."""
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path, exist_ok=True)
+
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flatten a nested dictionary with concatenated keys."""
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
         else:
-            return default
-    return data
+            items.append((new_key, v))
+    return dict(items)
 
-def filter_none(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Remove keys with None values from a dictionary."""
-    return {k: v for k, v in data.items() if v is not None}
+def get_env_variable(key: str, default: Optional[str] = None) -> str:
+    """Retrieve environment variable with fallback default."""
+    return os.environ.get(key, default or '')
