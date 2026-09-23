@@ -1,30 +1,41 @@
-import functools
-import time
-from typing import Callable, Any, Dict
+import os
+import shutil
+from typing import List, Optional
 
-# Cache for storing expensive function results
-_CACHE: Dict[tuple, Any] = {}
+def ensure_dir(path: str) -> None:
+    """Create directory if it does not exist."""
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-def memoize(func: Callable) -> Callable:
-    """Decorator to cache results of functions with hashable arguments."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (func.__name__, args, tuple(sorted(kwargs.items())))
-        if key not in _CACHE:
-            _CACHE[key] = func(*args, **kwargs)
-        return _CACHE[key]
-    return wrapper
+def clean_temp_files(directory: str, extension: str = '.tmp') -> int:
+    """Remove files with specific extension from directory."""
+    count = 0
+    if not os.path.exists(directory):
+        return count
 
-def batch_process(items: list, chunk_size: int = 100) -> list:
-    """Memory efficient chunking for large datasets."""
-    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+    for filename in os.listdir(directory):
+        if filename.endswith(extension):
+            file_path = os.path.join(directory, filename)
+            try:
+                os.remove(file_path)
+                count += 1
+            except OSError as e:
+                print(f"Error deleting {file_path}: {e}")
+    return count
 
-@memoize
-def compute_heavy_data(n: int) -> int:
-    """Simulation of performance-intensive calculation."""
-    time.sleep(1)
-    return sum(i * i for i in range(n))
+def get_file_list(directory: str, pattern: Optional[str] = None) -> List[str]:
+    """Retrieve list of files optionally matching pattern."""
+    files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+    if pattern:
+        return [f for f in files if pattern in f]
+    return files
 
-def clear_cache() -> None:
-    """Clear all cached results from memory."""
-    _CACHE.clear()
+def safe_remove_tree(path: str) -> bool:
+    """Recursively remove directory if exists."""
+    if os.path.exists(path):
+        try:
+            shutil.rmtree(path)
+            return True
+        except OSError:
+            return False
+    return False
