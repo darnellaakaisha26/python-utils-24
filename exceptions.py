@@ -1,58 +1,33 @@
-"""Custom exception classes for python-utils-24.
+"""Custom exceptions module for package error handling."""
 
-Provides a structured exception hierarchy to handle validation, configuration,
-and operational failures gracefully.
-"""
-
-from typing import Any, Dict, Optional
+from typing import Optional
 
 
 class UtilsError(Exception):
-    """Base exception for all errors raised by the utility library."""
+    """Base exception class for all library-specific errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
-        self.details = details or {}
-
-    def __str__(self) -> str:
-        if self.details:
-            return f"{self.message} (details: {self.details})"
-        return self.message
 
 
 class ValidationError(UtilsError):
-    """Raised when data validation checks fail."""
+    """Exception raised when value validation checks fail."""
 
-    def __init__(
-        self, message: str, field: Optional[str] = None, value: Any = None
-    ) -> None:
-        details = {}
-        if field is not None:
-            details["field"] = field
-        if value is not None:
-            details["value"] = value
-        super().__init__(message, details=details if details else None)
+    def __init__(self, message: str, field: Optional[str] = None) -> None:
+        detailed_message = f"Validation failed for '{field}': {message}" if field else message
+        super().__init__(detailed_message)
+        self.field = field
 
 
-class ConfigError(UtilsError):
-    """Raised when a configuration key or format is invalid."""
-
-    pass
+class ConfigurationError(UtilsError):
+    """Exception raised for missing or incorrect configurations."""
 
 
-class ProcessError(UtilsError):
-    """Raised when a background process or system command fails."""
+class ProcessingError(UtilsError):
+    """Exception raised when an operation fails during execution."""
 
-    def __init__(
-        self, 
-        message: str, 
-        exit_code: Optional[int] = None, 
-        stderr: Optional[str] = None
-    ) -> None:
-        details = {}
-        if exit_code is not None:
-            details["exit_code"] = exit_code
-        if stderr is not None:
-            details["stderr"] = stderr
-        super().__init__(message, details=details if details else None)
+    def __init__(self, message: str, cause: Optional[Exception] = None) -> None:
+        super().__init__(message)
+        if cause:
+            self.__cause__ = cause
