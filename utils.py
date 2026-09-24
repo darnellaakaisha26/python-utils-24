@@ -1,41 +1,40 @@
-import os
-import shutil
-from typing import List, Optional
+import functools
+import time
+import logging
+from typing import Callable, Any, Dict
 
-def ensure_dir(path: str) -> None:
-    """Create directory if it does not exist."""
-    if not os.path.exists(path):
-        os.makedirs(path)
+# Configure basic logging for performance monitoring
+logger = logging.getLogger(__name__)
 
-def clean_temp_files(directory: str, extension: str = '.tmp') -> int:
-    """Remove files with specific extension from directory."""
-    count = 0
-    if not os.path.exists(directory):
-        return count
+# Cache for memoized function results
+_memo_cache: Dict[str, Any] = {}
 
-    for filename in os.listdir(directory):
-        if filename.endswith(extension):
-            file_path = os.path.join(directory, filename)
-            try:
-                os.remove(file_path)
-                count += 1
-            except OSError as e:
-                print(f"Error deleting {file_path}: {e}")
-    return count
+def memoize(func: Callable) -> Callable:
+    """Decorator to cache function results for identical inputs."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        key = f"{func.__name__}:{args}:{frozenset(kwargs.items())}"
+        if key not in _memo_cache:
+            _memo_cache[key] = func(*args, **kwargs)
+        return _memo_cache[key]
+    return wrapper
 
-def get_file_list(directory: str, pattern: Optional[str] = None) -> List[str]:
-    """Retrieve list of files optionally matching pattern."""
-    files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
-    if pattern:
-        return [f for f in files if pattern in f]
-    return files
+def time_execution(func: Callable) -> Callable:
+    """Decorator for logging execution time of critical paths."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = time.perf_counter() - start_time
+        logger.debug(f"function {func.__name__} took {duration:.4f}s")
+        return result
+    return wrapper
 
-def safe_remove_tree(path: str) -> bool:
-    """Recursively remove directory if exists."""
-    if os.path.exists(path):
-        try:
-            shutil.rmtree(path)
-            return True
-        except OSError:
-            return False
-    return False
+def batch_process(items: list, batch_size: int = 100):
+    """Memory-efficient generator for processing large datasets."""
+    for i in range(0, len(items), batch_size):
+        yield items[i : i + batch_size]
+
+def clear_cache() -> None:
+    """Utility for manual cache clearing in memory-constrained environments."""
+    _memo_cache.clear()
