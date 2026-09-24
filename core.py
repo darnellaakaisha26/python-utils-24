@@ -1,31 +1,38 @@
-import time
-import functools
 import logging
-from typing import Callable, Any, Type
 
+# Configure logger for module tracking
 logger = logging.getLogger(__name__)
 
-def retry_on_failure(exceptions: tuple[Type[Exception], ...], max_retries: int = 3, delay: float = 1.0):
-    """Decorator for retrying network operations on specific exceptions."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            last_exception = None
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
-            
-            logger.error(f"All {max_retries} retries failed for {func.__name__}")
-            raise last_exception
-        return wrapper
-    return decorator
+def validate_input(data):
+    """Ensures input is a non-empty dictionary."""
+    if not isinstance(data, dict):
+        return False
+    if not data:
+        return False
+    return 'payload' in data and isinstance(data['payload'], (str, int))
 
-# Example usage for network tasks
+def run_processing_loop(data_stream):
+    """Main processing loop with input validation."""
+    for entry in data_stream:
+        try:
+            if not validate_input(entry):
+                logger.warning(f"Skipping invalid entry: {entry}")
+                continue
+            
+            process_data(entry['payload'])
+        except Exception as e:
+            logger.error(f"Unexpected loop error: {e}")
+
+def process_data(value):
+    """Handles individual data payloads."""
+    print(f"Processing value: {value}")
+
 if __name__ == "__main__":
-    @retry_on_failure(exceptions=(ConnectionError,), max_retries=3, delay=0.5)
-    def fetch_data(url: str):
-        raise ConnectionError(f"Failed to connect to {url}")
+    sample_data = [
+        {'payload': 'alpha'},
+        {'payload': 42},
+        {'invalid': 'data'},
+        {},
+        "not a dict"
+    ]
+    run_processing_loop(sample_data)
