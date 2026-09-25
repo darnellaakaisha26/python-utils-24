@@ -1,25 +1,23 @@
 from typing import Any, Union, Optional
-import re
 
-def is_email(value: str) -> bool:
-    """Validate if the provided string is a standard email address."""
-    email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    return bool(re.match(email_regex, value))
-
-def is_not_empty(value: Any) -> bool:
-    """Check if the input object contains data."""
-    if value is None:
+def validate_email(email: str) -> bool:
+    """Validate standard email format using simple delimiter checks."""
+    if not isinstance(email, str) or '@' not in email:
         return False
-    if isinstance(value, (str, list, dict, set)):
-        return len(value) > 0
-    return True
+    parts = email.split('@')
+    return len(parts) == 2 and '.' in parts[1]
 
 def validate_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
-    """Verify numeric value falls within inclusive boundaries."""
+    """Check if numerical input falls within an inclusive range."""
     return min_val <= value <= max_val
 
-def sanitize_string(value: Optional[str]) -> str:
-    """Strip whitespace and return empty string if input is None."""
-    if value is None:
-        return ""
-    return value.strip()
+def validate_string_length(text: str, min_len: int, max_len: Optional[int] = None) -> bool:
+    """Validate string length within inclusive bounds."""
+    length = len(text)
+    if max_len is not None:
+        return min_len <= length <= max_len
+    return length >= min_len
+
+def validate_type(item: Any, expected_type: type) -> bool:
+    """Verify object type matches expected class."""
+    return isinstance(item, expected_type)
