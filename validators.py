@@ -1,67 +1,46 @@
 import re
 from typing import Any, Dict, List, Tuple
 
-
-class ValidationError(ValueError):
-    """Exception raised when input data fails validation checks."""
-    pass
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
 
-def validate_record(
-    record: Dict[str, Any], required_fields: List[str]
+def validate_dict_schema(
+    data: Dict[str, Any], schema: Dict[str, Tuple[type, bool]]
 ) -> Tuple[bool, List[str]]:
-    """Validates a single record against required fields and basic constraints.
+    """
+    Validates a dictionary's keys and value types against a schema definition.
 
-    Returns a tuple of (is_valid, list_of_errors).
+    The schema mapping should be: {key_name: (expected_type, is_required)}
     """
     errors = []
 
-    # Check for missing required fields
-    for field in required_fields:
-        if field not in record or record[field] is None:
-            errors.append(f"Missing required field: '{field}'")
+    if not isinstance(data, dict):
+        return False, ["Input data is not a dictionary"]
 
-    if errors:
-        return False, errors
+    for key, (expected_type, required) in schema.items():
+        if key not in data:
+            if required:
+                errors.append(f"Missing required key: '{key}'")
+            continue
 
-    # Validate email format if the field is present
-    if "email" in record and record["email"]:
-        email_regex = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-        if not re.match(email_regex, str(record["email"])):
-            errors.append(f"Invalid email format: '{record['email']}'")
+        value = data[key]
+        if value is None and not required:
+            continue
 
-    # Validate numeric age bounds if present
-    if "age" in record and record["age"] is not None:
-        try:
-            age = int(record["age"])
-            if age < 0 or age > 120:
-                errors.append(f"Age out of realistic bounds: {age}")
-        except (ValueError, TypeError):
-            errors.append(f"Age must be an integer, got: '{record['age']}'")
+        if not isinstance(value, expected_type):
+            actual_type = type(value).__name__
+            expected_type_name = getattr(expected_type, "__name__", str(expected_type))
+            errors.append(
+                f"Invalid type for '{key}': expected {expected_type_name}, got {actual_type}"
+            )
 
     return len(errors) == 0, errors
 
 
-def process_input_batch(
-    batch: List[Dict[str, Any]], required_fields: List[str]
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Processes a batch of records, separating valid records from invalid ones.
-
-    Returns a tuple containing (valid_records, invalid_records_with_errors).
+def is_valid_email(email: str) -> bool:
     """
-    valid_records = []
-    invalid_records = []
-
-    for index, record in enumerate(batch):
-        is_valid, errors = validate_record(record, required_fields)
-        if is_valid:
-            valid_records.append(record)
-        else:
-            invalid_record_info = {
-                "index": index,
-                "record": record,
-                "errors": errors,
-            }
-            invalid_records.append(invalid_record_info)
-
-    return valid_records, invalid_records
+    Checks if the provided string matches a general email format.
+    """
+    if not isinstance(email, str):
+        return False
+    return bool(EMAIL_REGEX.match(email.strip()))
