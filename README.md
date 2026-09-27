@@ -1,49 +1,54 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 # python-utils-24
 
-A lightweight, production-ready utility toolkit designed to streamline daily Python development. It provides highly optimized, zero-dependency helpers for dictionary manipulation, path operations, and transient failure handling.
+`python-utils-24` is a collection of high-performance utility functions designed to streamline repetitive Python development tasks. It focuses on reducing boilerplate code for data serialization, file system manipulation, and asynchronous task management.
+
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
 ## Features
 
-* **Deep Dict Merging:** Recursively merge nested configurations and dictionaries with customizable conflict resolution.
-* **Resilient Retries:** A configurable decorator to automatically retry flaky functions or API calls using exponential backoff.
-* **Safe Path Resolver:** Bulletproof file system utility to locate, create, and validate cross-platform file paths securely.
+*   **File Streamliner**: Simplified context managers for efficient I/O operations and directory traversal.
+*   **Data Sanitizers**: Robust decorators to enforce schema validation and type safety on function arguments.
+*   **Async Dispatcher**: Lightweight wrappers to convert blocking I/O calls into non-blocking coroutines without overhead.
+*   **Environment Manager**: Auto-loading functionality for `.env` files with strict type-casting capabilities.
 
 ## Installation
 
-Install the package directly from PyPI:
+Install the package via pip:
 
 ```bash
 pip install python-utils-24
 ```
 
-## Quick Start
+For development mode and test dependencies:
 
-Here is a quick look at how you can simplify your workflow with `python-utils-24`:
+```bash
+git clone https://github.com/Developer/python-utils-24.git
+cd python-utils-24
+pip install -e .[dev]
+```
+
+## Basic Usage
+
+Quickly handle file reading and environment variable management using the utility modules:
 
 ```python
-from python_utils_24.dicts import deep_merge
-from python_utils_24.decorators import retry
+from pyutils24.io import load_json
+from pyutils24.env import get_env
 
-# 1. Safely merge nested configuration dicts
-default_config = {"server": {"host": "localhost", "port": 8080}, "debug": True}
-override_config = {"server": {"port": 9000}}
+# Load configurations securely
+db_url = get_env("DATABASE_URL", default="localhost:5432")
 
-final_config = deep_merge(default_config, override_config)
-print(final_config)
-# Output: {'server': {'host': 'localhost', 'port': 9000}, 'debug': True}
+# Robust JSON processing
+data = load_json("config.json")
 
-
-# 2. Add automatic retry logic with backoff
-@retry(exceptions=(ConnectionError,), tries=3, delay=2)
-def fetch_unreliable_api():
-    print("Attempting to connect to api...")
-    raise ConnectionError("Network timeout")
-
-# fetch_unreliable_api() will retry 3 times before raising the exception
+print(f"Connected to: {db_url}")
+print(f"Data retrieved: {data['version']}")
 ```
+
+## Contributing
+
+Contributions are welcome! Please open an issue to discuss proposed changes before submitting a pull request. Ensure all new utilities include corresponding unit tests in the `/tests` directory.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
