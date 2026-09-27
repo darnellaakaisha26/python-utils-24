@@ -1,28 +1,28 @@
-import json
-import os
-from typing import Any, Dict
+import functools
+import threading
+from typing import Any, Callable, Dict
 
-def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Loads JSON configuration from a file, merging with provided defaults.
-    """
-    config = defaults.copy()
-    
-    if not os.path.exists(filepath):
-        return config
+class ConfigRegistry:
+    """Thread-safe singleton registry for application configurations."""
+    _instance = None
+    _lock = threading.Lock()
+    _cache: Dict[str, Any] = {}
 
-    try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                config.update(data)
-    except (json.JSONDecodeError, IOError):
-        pass
-        
-    return config
+    def __new__(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(ConfigRegistry, cls).__new__(cls)
+            return cls._instance
 
-if __name__ == '__main__':
-    # Example usage for demonstration
-    default_settings = {'host': 'localhost', 'port': 8080}
-    settings = load_config('config.json', default_settings)
-    print(f'Loaded configuration: {settings}')
+    @functools.lru_cache(maxsize=128)
+    def get_setting(self, key: str, default: Any = None) -> Any:
+        """Retrieve setting with memoization for performance."""
+        return self._cache.get(key, default)
+
+    def set_setting(self, key: str, value: Any) -> None:
+        """Update registry and clear cache to ensure consistency."""
+        with self._lock:
+            self._cache[key] = value
+            self.get_setting.cache_clear()
+
+registry = ConfigRegistry()
