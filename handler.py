@@ -1,29 +1,38 @@
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, List, Optional, Callable
 
 class DataHandler:
-    """Utility class for processing dictionaries with functional hooks."""
+    """Handles transformation of dictionary datasets."""
 
-    def __init__(self, settings: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize handler with optional settings mapping."""
-        self.settings = settings or {}
+    def __init__(self, processors: Optional[List[Callable[[Any], Any]]] = None) -> None:
+        self.processors = processors or []
 
-    def execute(self, payload: Dict[str, Any], callback: Optional[Callable[[Any], Any]] = None) -> Dict[str, Any]:
-        """Apply processing logic to payload and optional callback transformation."""
-        processed_data: Dict[str, Any] = payload.copy()
+    def process_payload(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Apply sequence of processors to data values.
         
-        # Apply core transformations based on settings
-        if self.settings.get("strip_whitespace", False):
-            processed_data = {k: str(v).strip() for k, v in processed_data.items()}
+        Args:
+            data: Dictionary containing key-value pairs.
             
-        if callback:
-            return {k: callback(v) for k, v in processed_data.items()}
+        Returns:
+            Processed dictionary with modified values.
+        """
+        result: Dict[str, Any] = {}
+        for key, value in data.items():
+            processed_value = value
+            for func in self.processors:
+                processed_value = func(processed_value)
+            result[key] = processed_value
+        return result
+
+    def validate_keys(self, data: Dict[str, Any], required: List[str]) -> bool:
+        """
+        Ensure all required keys are present.
+        
+        Args:
+            data: Dictionary to inspect.
+            required: List of mandatory keys.
             
-        return processed_data
-
-    def update_settings(self, key: str, value: Any) -> None:
-        """Update specific internal configuration key-value pairs."""
-        self.settings[key] = value
-
-def create_handler(config: Optional[Dict[str, Any]] = None) -> DataHandler:
-    """Factory function for creating pre-configured DataHandler instances."""
-    return DataHandler(settings=config)
+        Returns:
+            Boolean indicating presence of all keys.
+        """
+        return all(key in data for key in required)
