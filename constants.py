@@ -1,29 +1,26 @@
 import os
 
-# System path configurations for file operations
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-LOG_DIR = os.path.join(BASE_DIR, 'logs')
+# Application configuration constants
+APP_NAME = "python-utils-24"
+DEFAULT_ENCODING = "utf-8"
 
-# Standard timeout values for network and I/O
-DEFAULT_TIMEOUT_SEC = 30
-SHORT_TIMEOUT_SEC = 5
+# File system related paths and limits
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
+TEMP_DIR = os.getenv("TEMP_PATH", "/tmp/utils_cache")
 
-# Common application settings
-MAX_RETRIES = 3
-CHUNK_SIZE = 1024 * 1024  # 1MB chunks
+# Common time constants
+SECONDS_IN_MINUTE = 60
+SECONDS_IN_HOUR = 3600
 
-# Supported formats for file processing
-SUPPORTED_EXTENSIONS = {'.json', '.csv', '.txt', '.yaml'}
+# Supported patterns and defaults
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+DEFAULT_RETRIES = 3
 
-# Environment defaults
-ENV_PROD = 'production'
-ENV_DEV = 'development'
-CURRENT_ENV = os.getenv('APP_ENV', ENV_DEV)
+# Network timeout settings
+REQUEST_TIMEOUT_SECONDS = 30
+CONNECTION_RETRY_DELAY = 1
 
-def get_directory(name: str) -> str:
-    """Helper to ensure consistent directory path resolution."""
-    target_dir = os.path.join(BASE_DIR, name)
-    if not os.path.exists(target_dir):
-        os.makedirs(target_dir, exist_ok=True)
-    return target_dir
+# Status codes for internal processes
+STATUS_SUCCESS = 0
+STATUS_ERROR = 1
+STATUS_WARNING = 2
