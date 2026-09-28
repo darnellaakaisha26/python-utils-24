@@ -1,28 +1,30 @@
-import functools
-import threading
-from typing import Any, Callable, Dict
+import json
+import os
+from typing import Any, Dict
 
-class ConfigRegistry:
-    """Thread-safe singleton registry for application configurations."""
-    _instance = None
-    _lock = threading.Lock()
-    _cache: Dict[str, Any] = {}
+def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Loads a JSON configuration file and merges it with provided defaults.
+    Returns the merged configuration dictionary.
+    """
+    config = defaults.copy()
 
-    def __new__(cls):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(ConfigRegistry, cls).__new__(cls)
-            return cls._instance
+    if not os.path.exists(filepath):
+        return config
 
-    @functools.lru_cache(maxsize=128)
-    def get_setting(self, key: str, default: Any = None) -> Any:
-        """Retrieve setting with memoization for performance."""
-        return self._cache.get(key, default)
+    try:
+        with open(filepath, 'r') as f:
+            user_config = json.load(f)
+            if isinstance(user_config, dict):
+                config.update(user_config)
+    except (json.JSONDecodeError, IOError):
+        pass
 
-    def set_setting(self, key: str, value: Any) -> None:
-        """Update registry and clear cache to ensure consistency."""
-        with self._lock:
-            self._cache[key] = value
-            self.get_setting.cache_clear()
+    return config
 
-registry = ConfigRegistry()
+def save_config(filepath: str, config: Dict[str, Any]) -> None:
+    """
+    Saves the configuration dictionary to a JSON file.
+    """
+    with open(filepath, 'w') as f:
+        json.dump(config, f, indent=4)
