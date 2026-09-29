@@ -1,33 +1,41 @@
 import time
-import functools
+import random
+from functools import wraps
 import logging
-from typing import Callable, Any
 
 logger = logging.getLogger(__name__)
 
-def retry_network_operation(max_attempts: int = 3, delay: float = 1.0):
+def retry(exceptions, tries=4, delay=1.0, backoff=2.0, jitter=True):
     """
-    Decorator to retry network-related functions with exponential backoff.
+    Decorator to retry a function call with exponential backoff and jitter.
+
+    :param exceptions: Exception or tuple of exceptions to catch.
+    :param tries: Maximum number of times to try before giving up.
+    :param delay: Initial delay between retries in seconds.
+    :param backoff: Multiplier applied to the delay after each failure.
+    :param jitter: If True, introduces randomness to prevent thundering herd problems.
     """
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempts = 0
-            current_delay = delay
-            
-            while attempts < max_attempts:
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            mtries, mdelay = tries, delay
+            while mtries > 1:
                 try:
                     return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempts += 1
-                    if attempts == max_attempts:
-                        logger.error(f"Final attempt failed for {func.__name__}")
-                        raise e
-                    
-                    logger.warning(f"Retry {attempts}/{max_attempts} for {func.__name__} after {current_delay}s")
+                except exceptions as e:
+                    # Calculate delay with randomized jitter
+                    current_delay = mdelay
+                    if jitter:
+                        current_delay *= random.uniform(0.5, 1.5)
+
+                    logger.warning(
+                        f"Network operation failed: {e}. "
+                        f"Retrying in {current_delay:.2f} seconds... ({mtries - 1} attempts remaining)"
+                    )
                     time.sleep(current_delay)
-                    current_delay *= 2
-            
-            return None
+                    mtries -= 1
+                    mdelay *= backoff
+            # Final try, raising the error if it fails again
+            return func(*args, **kwargs)
         return wrapper
     return decorator
