@@ -1,26 +1,35 @@
 import os
+import re
 
-# Application configuration constants
-APP_NAME = "python-utils-24"
-DEFAULT_ENCODING = "utf-8"
+# Standard environmental configurations
+DEFAULT_ENCODING = 'utf-8'
+DEFAULT_TIMEOUT = 30
 
-# File system related paths and limits
-MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
-TEMP_DIR = os.getenv("TEMP_PATH", "/tmp/utils_cache")
+# Standard regex patterns
+EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+URL_REGEX = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+')
 
-# Common time constants
-SECONDS_IN_MINUTE = 60
-SECONDS_IN_HOUR = 3600
+# Logging levels and formats
+LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-# Supported patterns and defaults
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-DEFAULT_RETRIES = 3
+# Common path constants
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMP_DIR = os.path.join(BASE_DIR, 'tmp')
 
-# Network timeout settings
-REQUEST_TIMEOUT_SECONDS = 30
-CONNECTION_RETRY_DELAY = 1
+# Exit codes
+SUCCESS = 0
+ERROR_GENERAL = 1
+ERROR_CONFIG = 2
 
-# Status codes for internal processes
-STATUS_SUCCESS = 0
-STATUS_ERROR = 1
-STATUS_WARNING = 2
+def get_environment_variable(key: str, default: str = None) -> str:
+    """Retrieve env var with fallback support."""
+    return os.getenv(key, default)
+
+# Configuration dictionary for standard library use
+SETTINGS = {
+    "encoding": DEFAULT_ENCODING,
+    "timeout": DEFAULT_TIMEOUT,
+    "base_path": BASE_DIR,
+    "temp_path": TEMP_DIR
+}
