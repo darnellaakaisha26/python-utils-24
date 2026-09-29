@@ -1,38 +1,35 @@
 import logging
+from typing import Any, Callable, Optional
 
-# Configure logger for module tracking
 logger = logging.getLogger(__name__)
 
-def validate_input(data):
-    """Ensures input is a non-empty dictionary."""
-    if not isinstance(data, dict):
-        return False
-    if not data:
-        return False
-    return 'payload' in data and isinstance(data['payload'], (str, int))
+def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
+    """Executes a function safely with error trapping."""
+    try:
+        return func(*args, **kwargs)
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.error(f"Execution error in {func.__name__}: {e}")
+        return default
+    except Exception as e:
+        logger.critical(f"Unexpected system failure: {e}")
+        raise
 
-def run_processing_loop(data_stream):
-    """Main processing loop with input validation."""
-    for entry in data_stream:
-        try:
-            if not validate_input(entry):
-                logger.warning(f"Skipping invalid entry: {entry}")
-                continue
-            
-            process_data(entry['payload'])
-        except Exception as e:
-            logger.error(f"Unexpected loop error: {e}")
+def validate_input(data: Any, expected_type: type) -> bool:
+    """Checks input against expected type with edge case handling."""
+    if data is None:
+        return False
+    try:
+        return isinstance(data, expected_type)
+    except TypeError:
+        return False
 
-def process_data(value):
-    """Handles individual data payloads."""
-    print(f"Processing value: {value}")
+def process_payload(payload: Optional[dict]) -> dict:
+    """Processes dict payload with null safety."""
+    if not isinstance(payload, dict):
+        return {}
+    return {k: v for k, v in payload.items() if v is not None}
 
 if __name__ == "__main__":
-    sample_data = [
-        {'payload': 'alpha'},
-        {'payload': 42},
-        {'invalid': 'data'},
-        {},
-        "not a dict"
-    ]
-    run_processing_loop(sample_data)
+    logging.basicConfig(level=logging.INFO)
+    result = safe_execute(len, None, default=0)
+    print(f"Result: {result}")
