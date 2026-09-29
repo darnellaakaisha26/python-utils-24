@@ -1,36 +1,37 @@
 import logging
+from typing import Any, List, Optional
 
-def validate_input(data):
-    """Ensures input data conforms to expected format."""
-    if not isinstance(data, dict):
-        raise ValueError("Input must be a dictionary")
-    if "id" not in data or "value" not in data:
-        raise KeyError("Missing required fields: 'id' or 'value'")
-    if not isinstance(data["value"], (int, float)):
-        raise TypeError("Field 'value' must be numeric")
-    return True
+# Configure standard processor logging
+logger = logging.getLogger(__name__)
 
-def process_items(items):
-    """Main processing loop with integrated validation."""
-    processed = []
-    for entry in items:
-        try:
-            if validate_input(entry):
-                # Simulate business logic
-                result = entry["value"] * 2
-                processed.append({"id": entry["id"], "result": result})
-        except (ValueError, KeyError, TypeError) as e:
-            logging.error(f"Skipping invalid entry {entry}: {e}")
-            continue
-    return processed
+class DataProcessor:
+    """Handles bulk transformation of input datasets."""
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    sample_data = [
-        {"id": 1, "value": 10},
-        {"id": 2, "value": "invalid"},
-        {"id": 3, "value": 25.5},
-        {}
-    ]
-    results = process_items(sample_data)
-    print(f"Processed {len(results)} items successfully.")
+    def __init__(self, settings: Optional[dict] = None):
+        self.settings = settings or {}
+        self.strict_mode = self.settings.get("strict", True)
+
+    def sanitize(self, data: Any) -> Any:
+        """Removes whitespace and ensures consistent string formatting."""
+        if isinstance(data, str):
+            return data.strip()
+        return data
+
+    def process_batch(self, items: List[Any]) -> List[Any]:
+        """Execution pipeline for collection processing."""
+        results = []
+        for item in items:
+            try:
+                cleaned = self.sanitize(item)
+                if cleaned is not None:
+                    results.append(cleaned)
+            except Exception as e:
+                logger.error(f"failed to process item: {item}, error: {e}")
+                if self.strict_mode:
+                    raise
+        return results
+
+def run_pipeline(data: List[Any]) -> List[Any]:
+    """Utility wrapper for quick processor execution."""
+    processor = DataProcessor()
+    return processor.process_batch(data)
