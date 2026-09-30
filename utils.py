@@ -1,41 +1,30 @@
-import time
-import random
-from functools import wraps
-import logging
+from typing import List, Any, Optional, Dict
+import json
 
-logger = logging.getLogger(__name__)
+def format_data(data: List[Any], prefix: str = "") -> str:
+    """Convert list to a formatted string representation with prefix."""
+    items = ", ".join(str(item) for item in data)
+    return f"{prefix}{items}"
 
-def retry(exceptions, tries=4, delay=1.0, backoff=2.0, jitter=True):
-    """
-    Decorator to retry a function call with exponential backoff and jitter.
+def parse_json(raw_input: str) -> Optional[Dict[str, Any]]:
+    """Safe parsing of JSON strings into dictionary objects."""
+    try:
+        return json.loads(raw_input)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
-    :param exceptions: Exception or tuple of exceptions to catch.
-    :param tries: Maximum number of times to try before giving up.
-    :param delay: Initial delay between retries in seconds.
-    :param backoff: Multiplier applied to the delay after each failure.
-    :param jitter: If True, introduces randomness to prevent thundering herd problems.
-    """
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            mtries, mdelay = tries, delay
-            while mtries > 1:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    # Calculate delay with randomized jitter
-                    current_delay = mdelay
-                    if jitter:
-                        current_delay *= random.uniform(0.5, 1.5)
+def get_unique_elements(items: List[Any]) -> List[Any]:
+    """Return a list of unique items preserving insertion order."""
+    seen = set()
+    result = []
+    for item in items:
+        if item not in seen:
+            result.append(item)
+            seen.add(item)
+    return result
 
-                    logger.warning(
-                        f"Network operation failed: {e}. "
-                        f"Retrying in {current_delay:.2f} seconds... ({mtries - 1} attempts remaining)"
-                    )
-                    time.sleep(current_delay)
-                    mtries -= 1
-                    mdelay *= backoff
-            # Final try, raising the error if it fails again
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
+    """Split a list into smaller chunks of a fixed size."""
+    if size <= 0:
+        raise ValueError("Chunk size must be a positive integer.")
+    return [data[i:i + size] for i in range(0, len(data), size)]
