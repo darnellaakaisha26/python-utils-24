@@ -1,30 +1,32 @@
-import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Loads a JSON configuration file and merges it with provided defaults.
-    Returns the merged configuration dictionary.
-    """
-    config = defaults.copy()
+class ConfigLoader:
+    """Handles configuration loading from environment variables."""
 
-    if not os.path.exists(filepath):
-        return config
+    def __init__(self, prefix: str = "APP_") -> None:
+        self.prefix: str = prefix
+        self._cache: Dict[str, str] = {}
 
-    try:
-        with open(filepath, 'r') as f:
-            user_config = json.load(f)
-            if isinstance(user_config, dict):
-                config.update(user_config)
-    except (json.JSONDecodeError, IOError):
-        pass
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        """Retrieve a configuration value with an optional default."""
+        env_key: str = f"{self.prefix}{key.upper()}"
+        return os.environ.get(env_key, default)
 
-    return config
+    def get_int(self, key: str, default: int) -> int:
+        """Retrieve an integer configuration value."""
+        value: Optional[str] = self.get(key)
+        try:
+            return int(value) if value is not None else default
+        except (ValueError, TypeError):
+            return default
 
-def save_config(filepath: str, config: Dict[str, Any]) -> None:
-    """
-    Saves the configuration dictionary to a JSON file.
-    """
-    with open(filepath, 'w') as f:
-        json.dump(config, f, indent=4)
+    def load_all(self) -> Dict[str, str]:
+        """Return all configuration values matching the prefix."""
+        if not self._cache:
+            self._cache = {
+                k[len(self.prefix):].lower(): v
+                for k, v in os.environ.items()
+                if k.startswith(self.prefix)
+            }
+        return self._cache
