@@ -1,50 +1,51 @@
-import functools
-from typing import Callable, Any
+"""Custom exception hierarchy for general utility operations."""
 
-class PerformanceError(Exception):
-    """Base class for performance-related exceptions."""
-    pass
+from typing import Any, Dict, Optional
 
-class CacheLookupError(PerformanceError):
-    """Raised when resource lookup fails performance criteria."""
-    pass
 
-def memoize_with_ttl(ttl_seconds: int = 300) -> Callable:
-    """
-    Decorator to cache function results with a time-to-live constraint.
-    Implements simple dictionary-based storage for O(1) retrieval.
-    """
-    def decorator(func: Callable) -> Callable:
-        cache = {}
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            import time
-            key = (args, frozenset(kwargs.items()))
-            now = time.time()
-            
-            if key in cache:
-                result, timestamp = cache[key]
-                if now - timestamp < ttl_seconds:
-                    return result
-            
-            result = func(*args, **kwargs)
-            cache[key] = (result, now)
-            return result
-        return wrapper
-    return decorator
+class BaseUtilError(Exception):
+    """Base exception class for all library utilities."""
 
-def validate_execution_time(threshold: float) -> Callable:
-    """
-    Decorator to enforce execution time limits on critical blocks.
-    """
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            import time
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            if (time.perf_counter() - start) > threshold:
-                raise PerformanceError(f"Execution exceeded {threshold}s limit")
-            return result
-        return wrapper
-    return decorator
+    def __init__(self, message: str, code: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.message: str = message
+        self.code: Optional[int] = code
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert exception details into a structured dictionary."""
+        return {
+            "error": self.__class__.__name__,
+            "message": self.message,
+            "code": self.code,
+        }
+
+
+class ValidationError(BaseUtilError):
+    """Raised when input data validation fails."""
+
+    def __init__(self, message: str, field_name: Optional[str] = None) -> None:
+        super().__init__(message, code=400)
+        self.field_name: Optional[str] = field_name
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Include the problematic field name in the error payload."""
+        payload: Dict[str, Any] = super().to_dict()
+        if self.field_name:
+            payload["field_name"] = self.field_name
+        return payload
+
+
+class ConfigurationError(BaseUtilError):
+    """Raised when configuration settings are missing or malformed."""
+
+    def __init__(self, message: str, config_key: Optional[str] = None) -> None:
+        super().__init__(message, code=500)
+        self.config_key: Optional[str] = config_key
+
+
+class ResourceNotFoundError(BaseUtilError):
+    """Raised when a requested resource cannot be located."""
+
+    def __init__(self, message: str, resource_id: Optional[str] = None) -> None:
+        super().__init__(message, code=404)
+        self.resource_id: Optional[str] = resource_id
