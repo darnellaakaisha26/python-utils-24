@@ -1,30 +1,32 @@
-from typing import List, Any, Optional, Dict
-import json
+import functools
+import time
+from typing import Callable, Any, Dict
 
-def format_data(data: List[Any], prefix: str = "") -> str:
-    """Convert list to a formatted string representation with prefix."""
-    items = ", ".join(str(item) for item in data)
-    return f"{prefix}{items}"
+# Cache dictionary to store results for performance
+_CACHE: Dict[str, Any] = {}
 
-def parse_json(raw_input: str) -> Optional[Dict[str, Any]]:
-    """Safe parsing of JSON strings into dictionary objects."""
-    try:
-        return json.loads(raw_input)
-    except (json.JSONDecodeError, TypeError):
-        return None
+def memoize(func: Callable) -> Callable:
+    """Decorator for caching function results to improve throughput."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = f"{func.__name__}:{args}:{frozenset(kwargs.items())}"
+        if key not in _CACHE:
+            _CACHE[key] = func(*args, **kwargs)
+        return _CACHE[key]
+    return wrapper
 
-def get_unique_elements(items: List[Any]) -> List[Any]:
-    """Return a list of unique items preserving insertion order."""
-    seen = set()
-    result = []
-    for item in items:
-        if item not in seen:
-            result.append(item)
-            seen.add(item)
-    return result
+def batch_process(data: list, chunk_size: int = 100):
+    """Memory-efficient generator for processing large datasets in chunks."""
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
 
-def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
-    """Split a list into smaller chunks of a fixed size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be a positive integer.")
-    return [data[i:i + size] for i in range(0, len(data), size)]
+@memoize
+def compute_heavy_task(n: int) -> int:
+    """Simulated computationally expensive operation."""
+    time.sleep(1)
+    return n * n
+
+def clear_cache() -> None:
+    """Reset internal state to free memory."""
+    global _CACHE
+    _CACHE = {}
