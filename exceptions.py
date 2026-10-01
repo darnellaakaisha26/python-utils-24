@@ -1,33 +1,50 @@
-"""Custom exceptions module for package error handling."""
+import functools
+from typing import Callable, Any
 
-from typing import Optional
+class PerformanceError(Exception):
+    """Base class for performance-related exceptions."""
+    pass
 
+class CacheLookupError(PerformanceError):
+    """Raised when resource lookup fails performance criteria."""
+    pass
 
-class UtilsError(Exception):
-    """Base exception class for all library-specific errors."""
+def memoize_with_ttl(ttl_seconds: int = 300) -> Callable:
+    """
+    Decorator to cache function results with a time-to-live constraint.
+    Implements simple dictionary-based storage for O(1) retrieval.
+    """
+    def decorator(func: Callable) -> Callable:
+        cache = {}
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            import time
+            key = (args, frozenset(kwargs.items()))
+            now = time.time()
+            
+            if key in cache:
+                result, timestamp = cache[key]
+                if now - timestamp < ttl_seconds:
+                    return result
+            
+            result = func(*args, **kwargs)
+            cache[key] = (result, now)
+            return result
+        return wrapper
+    return decorator
 
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-        self.message = message
-
-
-class ValidationError(UtilsError):
-    """Exception raised when value validation checks fail."""
-
-    def __init__(self, message: str, field: Optional[str] = None) -> None:
-        detailed_message = f"Validation failed for '{field}': {message}" if field else message
-        super().__init__(detailed_message)
-        self.field = field
-
-
-class ConfigurationError(UtilsError):
-    """Exception raised for missing or incorrect configurations."""
-
-
-class ProcessingError(UtilsError):
-    """Exception raised when an operation fails during execution."""
-
-    def __init__(self, message: str, cause: Optional[Exception] = None) -> None:
-        super().__init__(message)
-        if cause:
-            self.__cause__ = cause
+def validate_execution_time(threshold: float) -> Callable:
+    """
+    Decorator to enforce execution time limits on critical blocks.
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            import time
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            if (time.perf_counter() - start) > threshold:
+                raise PerformanceError(f"Execution exceeded {threshold}s limit")
+            return result
+        return wrapper
+    return decorator
