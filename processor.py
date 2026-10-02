@@ -1,37 +1,44 @@
-import logging
-from typing import Any, List, Optional
+import functools
+import itertools
+from typing import Any, Callable, Generator, Iterable, List, Sequence
 
-# Configure standard processor logging
-logger = logging.getLogger(__name__)
 
 class DataProcessor:
-    """Handles bulk transformation of input datasets."""
+    """Efficient data stream processor with batching and caching optimizations."""
 
-    def __init__(self, settings: Optional[dict] = None):
-        self.settings = settings or {}
-        self.strict_mode = self.settings.get("strict", True)
+    def __init__(self, batch_size: int = 1000):
+        if batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer")
+        self.batch_size = batch_size
 
-    def sanitize(self, data: Any) -> Any:
-        """Removes whitespace and ensures consistent string formatting."""
-        if isinstance(data, str):
-            return data.strip()
-        return data
+    def chunk_iterable(self, iterable: Iterable[Any]) -> Generator[List[Any], None, None]:
+        """Yield successive n-sized chunks from an iterable without loading all in memory."""
+        iterator = iter(iterable)
+        while True:
+            chunk = list(itertools.islice(iterator, self.batch_size))
+            if not chunk:
+                break
+            yield chunk
 
-    def process_batch(self, items: List[Any]) -> List[Any]:
-        """Execution pipeline for collection processing."""
+    @functools.lru_cache(maxsize=1024)
+    def cached_transform(self, item: Any, transform_fn: Callable[[Any], Any]) -> Any:
+        """Apply transformation with caching for repetitive high-cost inputs."""
+        return transform_fn(item)
+
+    def process_stream(
+        self, iterable: Iterable[Any], transform_fn: Callable[[Any], Any]
+    ) -> Generator[Any, None, None]:
+        """Process large data stream efficiently by batching and applying cached transformations."""
+        for chunk in self.chunk_iterable(iterable):
+            for item in chunk:
+                yield self.cached_transform(item, transform_fn)
+
+    def process_in_batches(
+        self, items: Sequence[Any], batch_func: Callable[[List[Any]], List[Any]]
+    ) -> List[Any]:
+        """Process fixed-size batches using optimized bulk execution callback."""
         results = []
-        for item in items:
-            try:
-                cleaned = self.sanitize(item)
-                if cleaned is not None:
-                    results.append(cleaned)
-            except Exception as e:
-                logger.error(f"failed to process item: {item}, error: {e}")
-                if self.strict_mode:
-                    raise
+        for chunk in self.chunk_iterable(items):
+            batch_result = batch_func(chunk)
+            results.extend(batch_result)
         return results
-
-def run_pipeline(data: List[Any]) -> List[Any]:
-    """Utility wrapper for quick processor execution."""
-    processor = DataProcessor()
-    return processor.process_batch(data)
