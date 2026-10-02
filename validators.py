@@ -1,38 +1,52 @@
-import logging
+import ipaddress
+import re
+from urllib.parse import urlparse
 
-# Configure logger for module activities
-logger = logging.getLogger(__name__)
+# Regular expression for a standard email format
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
-def validate_input_data(data):
-    """Ensures input data conforms to expected schema."""
-    if not isinstance(data, dict):
-        raise ValueError("Input must be a dictionary")
-    
-    required_fields = ['id', 'payload', 'timestamp']
-    for field in required_fields:
-        if field not in data:
-            logger.error(f"Missing required field: {field}")
-            return False
-    
-    if not isinstance(data.get('id'), int):
-        logger.warning("Invalid ID format provided")
+
+def is_valid_email(email: str) -> bool:
+    """Check if the provided string is a valid email address."""
+    if not email or not isinstance(email, str):
         return False
-        
-    return True
+    return bool(EMAIL_REGEX.match(email))
 
-def process_main_loop(items):
-    """Main processing loop with integrated validation logic."""
-    results = []
-    for item in items:
-        try:
-            if validate_input_data(item):
-                # Simulate processing logic
-                processed = item.get('payload').upper()
-                results.append(processed)
-            else:
-                logger.info(f"Skipping invalid item: {item.get('id')}")
-        except Exception as e:
-            logger.exception(f"Unexpected error during processing: {e}")
-            continue
-            
-    return results
+
+def is_valid_url(url: str) -> bool:
+    """Verify if a string is a well-formed HTTP/HTTPS URL."""
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        result = urlparse(url)
+        return all([result.scheme in ("http", "https"), result.netloc])
+    except ValueError:
+        return False
+
+
+def is_valid_ip(ip_str: str) -> bool:
+    """Validate if the string is a valid IPv4 or IPv6 address."""
+    if not ip_str or not isinstance(ip_str, str):
+        return False
+    try:
+        ipaddress.ip_address(ip_str)
+        return True
+    except ValueError:
+        return False
+
+
+def is_strong_password(password: str, min_length: int = 8) -> bool:
+    """Check if password meets basic strength requirements.
+
+    Requires at least one uppercase letter, one lowercase letter,
+    one digit, and one special character.
+    """
+    if not password or len(password) < min_length:
+        return False
+
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_special = any(not c.isalnum() for c in password)
+
+    return all([has_upper, has_lower, has_digit, has_special])
