@@ -1,35 +1,31 @@
-import logging
-from typing import Any, Callable, Optional
+from typing import Any, Dict, List, Optional, Callable
 
-logger = logging.getLogger(__name__)
+class DataProcessor:
+    """Handles data transformation and validation tasks."""
 
-def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
-    """Executes a function safely with error trapping."""
-    try:
-        return func(*args, **kwargs)
-    except (ValueError, TypeError, AttributeError) as e:
-        logger.error(f"Execution error in {func.__name__}: {e}")
-        return default
-    except Exception as e:
-        logger.critical(f"Unexpected system failure: {e}")
-        raise
+    def __init__(self, settings: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize with optional configuration settings."""
+        self.settings = settings or {}
 
-def validate_input(data: Any, expected_type: type) -> bool:
-    """Checks input against expected type with edge case handling."""
-    if data is None:
-        return False
-    try:
-        return isinstance(data, expected_type)
-    except TypeError:
-        return False
+    def transform_items(self, items: List[Any], func: Callable[[Any], Any]) -> List[Any]:
+        """Apply a function to each item in a list with error catching."""
+        results: List[Any] = []
+        for item in items:
+            try:
+                results.append(func(item))
+            except Exception:
+                continue
+        return results
 
-def process_payload(payload: Optional[dict]) -> dict:
-    """Processes dict payload with null safety."""
-    if not isinstance(payload, dict):
-        return {}
-    return {k: v for k, v in payload.items() if v is not None}
+    def filter_by_key(self, data: List[Dict[str, Any]], key: str, value: Any) -> List[Dict[str, Any]]:
+        """Return dicts matching a specific key-value pair."""
+        return [item for item in data if item.get(key) == value]
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    result = safe_execute(len, None, default=0)
-    print(f"Result: {result}")
+    def get_summary(self, data: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Calculate counts based on internal settings criteria."""
+        return {"total": len(data), "processed": len([i for i in data if i.get("active")])}
+
+    @staticmethod
+    def validate_payload(payload: Any) -> bool:
+        """Check if payload is a non-empty dictionary."""
+        return isinstance(payload, dict) and len(payload) > 0
