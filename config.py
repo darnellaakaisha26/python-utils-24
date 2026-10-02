@@ -1,32 +1,44 @@
+import json
 import os
 from typing import Any, Dict, Optional
 
+
 class ConfigLoader:
-    """Handles configuration loading from environment variables."""
+    """A utility class to load, merge, and retrieve configuration settings with defaults."""
 
-    def __init__(self, prefix: str = "APP_") -> None:
-        self.prefix: str = prefix
-        self._cache: Dict[str, str] = {}
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None):
+        self._defaults = defaults or {}
+        self._config = self._defaults.copy()
 
-    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
-        """Retrieve a configuration value with an optional default."""
-        env_key: str = f"{self.prefix}{key.upper()}"
-        return os.environ.get(env_key, default)
+    def load_from_dict(self, data: Dict[str, Any]) -> None:
+        """Merges the provided dictionary configuration with the defaults."""
+        self._config.update(data)
 
-    def get_int(self, key: str, default: int) -> int:
-        """Retrieve an integer configuration value."""
-        value: Optional[str] = self.get(key)
-        try:
-            return int(value) if value is not None else default
-        except (ValueError, TypeError):
-            return default
+    def load_from_json(self, filepath: str) -> None:
+        """Loads configuration from a JSON file and merges it with current values."""
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    self.load_from_dict(data)
 
-    def load_all(self) -> Dict[str, str]:
-        """Return all configuration values matching the prefix."""
-        if not self._cache:
-            self._cache = {
-                k[len(self.prefix):].lower(): v
-                for k, v in os.environ.items()
-                if k.startswith(self.prefix)
-            }
-        return self._cache
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieves a configuration value.
+
+        Supports nested keys separated by dots (e.g., 'database.host').
+        """
+        parts = key.split(".")
+        current: Any = self._config
+
+        for part in parts:
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                return default
+
+        return current
+
+    @property
+    def config(self) -> Dict[str, Any]:
+        """Returns a copy of the active configuration."""
+        return self._config.copy()
