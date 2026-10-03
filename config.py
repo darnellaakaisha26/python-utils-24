@@ -3,42 +3,56 @@ import os
 from typing import Any, Dict, Optional
 
 
-class ConfigLoader:
-    """A utility class to load, merge, and retrieve configuration settings with defaults."""
+class ConfigManager:
+    """Handles application configuration loading with robust edge-case handling."""
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None):
-        self._defaults = defaults or {}
-        self._config = self._defaults.copy()
+    def __init__(self, config_path: Optional[str] = None):
+        self.config_path = config_path
+        self._config: Dict[str, Any] = {}
+        if config_path:
+            self.load_from_file(config_path)
 
-    def load_from_dict(self, data: Dict[str, Any]) -> None:
-        """Merges the provided dictionary configuration with the defaults."""
-        self._config.update(data)
+    def load_from_file(self, filepath: str) -> Dict[str, Any]:
+        """Load configuration from a JSON file with validation and safe parsing."""
+        if not isinstance(filepath, str) or not filepath.strip():
+            raise ValueError("Configuration filepath must be a non-empty string")
 
-    def load_from_json(self, filepath: str) -> None:
-        """Loads configuration from a JSON file and merges it with current values."""
-        if os.path.exists(filepath):
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Configuration file not found: {filepath}")
+
+        if not os.path.access(filepath, os.R_OK):
+            raise PermissionError(f"Configuration file is not readable: {filepath}")
+
+        try:
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, dict):
-                    self.load_from_dict(data)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in '{filepath}': {e.msg} at line {e.lineno}") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to read configuration '{filepath}': {str(e)}") from e
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieves a configuration value.
+        if not isinstance(data, dict):
+            raise TypeError(f"Root config must be a JSON object, got {type(data).__name__}")
 
-        Supports nested keys separated by dots (e.g., 'database.host').
-        """
-        parts = key.split(".")
-        current: Any = self._config
+        self._config.update(data)
+        return self._config
 
-        for part in parts:
+    def get(self, key: str, default: Any = None, expected_type: Optional[type] = None) -> Any:
+        """Safely retrieve nested config values using dot notation with fallback type conversion."""
+        if not key or not isinstance(key, str):
+            return default
+
+        current = self._config
+        for part in key.split("."):
             if isinstance(current, dict) and part in current:
                 current = current[part]
             else:
                 return default
 
-        return current
+        if expected_type is not None and not isinstance(current, expected_type):
+            try:
+                return expected_type(current)
+            except (ValueError, TypeError):
+                return default
 
-    @property
-    def config(self) -> Dict[str, Any]:
-        """Returns a copy of the active configuration."""
-        return self._config.copy()
+        return current
