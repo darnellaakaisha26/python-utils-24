@@ -1,33 +1,61 @@
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
-    pass
+import re
+from typing import Union, Any
+from urllib.parse import urlparse
 
-def validate_payload(data):
-    """
-    Validates that the input is a non-empty dictionary
-    containing required keys.
-    """
-    if not isinstance(data, dict):
-        raise ValidationError("Payload must be a dictionary")
-    
-    required_keys = {"id", "payload"}
-    if not required_keys.issubset(data.keys()):
-        missing = required_keys - data.keys()
-        raise ValidationError(f"Missing required keys: {missing}")
-    
-    if not isinstance(data.get("id"), int):
-        raise ValidationError("Field 'id' must be an integer")
+# Regular expression for a standard email format validation
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+\$")
 
-def process_main_loop(data_stream):
+
+def is_valid_email(email: Any) -> bool:
+    """Validate if the provided value is a syntactically correct email address.
+
+    Args:
+        email: The input to validate. Usually a string.
+
+    Returns:
+        True if the input is a valid email string, False otherwise.
     """
-    Main processing loop with integrated input validation.
+    if not isinstance(email, str):
+        return False
+    return bool(EMAIL_REGEX.match(email))
+
+
+def is_valid_url(url: Any) -> bool:
+    """Verify if a given string is a properly formatted URL.
+
+    Args:
+        url: The input string to check.
+
+    Returns:
+        True if the input is a valid HTTP/HTTPS URL, False otherwise.
     """
-    for entry in data_stream:
-        try:
-            validate_payload(entry)
-            # Logic for valid data processing goes here
-            print(f"Processing record: {entry['id']}")
-        except ValidationError as e:
-            print(f"Skipping invalid entry: {e}")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+    if not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url)
+        return all([parsed.scheme in ("http", "https"), parsed.netloc])
+    except Exception:
+        return False
+
+
+def validate_numeric_range(
+    value: Union[int, float],
+    min_value: Union[int, float],
+    max_value: Union[int, float],
+) -> bool:
+    """Check if a numeric value falls within a specified inclusive range.
+
+    Args:
+        value: The number to validate.
+        min_value: The lower bound of the range.
+        max_value: The upper bound of the range.
+
+    Returns:
+        True if value is between min_value and max_value inclusive, False otherwise.
+
+    Raises:
+        ValueError: If min_value is greater than max_value.
+    """
+    if min_value > max_value:
+        raise ValueError("Minimum value cannot be greater than maximum value.")
+    return min_value <= value <= max_value
