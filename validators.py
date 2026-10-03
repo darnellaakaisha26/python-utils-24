@@ -1,52 +1,33 @@
-import ipaddress
-import re
-from urllib.parse import urlparse
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-# Regular expression for a standard email format
-EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-
-
-def is_valid_email(email: str) -> bool:
-    """Check if the provided string is a valid email address."""
-    if not email or not isinstance(email, str):
-        return False
-    return bool(EMAIL_REGEX.match(email))
-
-
-def is_valid_url(url: str) -> bool:
-    """Verify if a string is a well-formed HTTP/HTTPS URL."""
-    if not url or not isinstance(url, str):
-        return False
-    try:
-        result = urlparse(url)
-        return all([result.scheme in ("http", "https"), result.netloc])
-    except ValueError:
-        return False
-
-
-def is_valid_ip(ip_str: str) -> bool:
-    """Validate if the string is a valid IPv4 or IPv6 address."""
-    if not ip_str or not isinstance(ip_str, str):
-        return False
-    try:
-        ipaddress.ip_address(ip_str)
-        return True
-    except ValueError:
-        return False
-
-
-def is_strong_password(password: str, min_length: int = 8) -> bool:
-    """Check if password meets basic strength requirements.
-
-    Requires at least one uppercase letter, one lowercase letter,
-    one digit, and one special character.
+def validate_payload(data):
     """
-    if not password or len(password) < min_length:
-        return False
+    Validates that the input is a non-empty dictionary
+    containing required keys.
+    """
+    if not isinstance(data, dict):
+        raise ValidationError("Payload must be a dictionary")
+    
+    required_keys = {"id", "payload"}
+    if not required_keys.issubset(data.keys()):
+        missing = required_keys - data.keys()
+        raise ValidationError(f"Missing required keys: {missing}")
+    
+    if not isinstance(data.get("id"), int):
+        raise ValidationError("Field 'id' must be an integer")
 
-    has_upper = any(c.isupper() for c in password)
-    has_lower = any(c.islower() for c in password)
-    has_digit = any(c.isdigit() for c in password)
-    has_special = any(not c.isalnum() for c in password)
-
-    return all([has_upper, has_lower, has_digit, has_special])
+def process_main_loop(data_stream):
+    """
+    Main processing loop with integrated input validation.
+    """
+    for entry in data_stream:
+        try:
+            validate_payload(entry)
+            # Logic for valid data processing goes here
+            print(f"Processing record: {entry['id']}")
+        except ValidationError as e:
+            print(f"Skipping invalid entry: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
