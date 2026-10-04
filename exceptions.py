@@ -1,51 +1,41 @@
-"""Custom exception hierarchy for general utility operations."""
+"""Custom exception classes and formatting utilities for general operations."""
 
-from typing import Any, Dict, Optional
+import traceback
+from typing import Optional, Type
 
 
-class BaseUtilError(Exception):
-    """Base exception class for all library utilities."""
+class UtilError(Exception):
+    """Base exception class for all library-specific errors."""
 
-    def __init__(self, message: str, code: Optional[int] = None) -> None:
+    def __init__(self, message: str, original_exception: Optional[Exception] = None) -> None:
         super().__init__(message)
-        self.message: str = message
-        self.code: Optional[int] = code
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert exception details into a structured dictionary."""
-        return {
-            "error": self.__class__.__name__,
-            "message": self.message,
-            "code": self.code,
-        }
+        self.original_exception = original_exception
 
 
-class ValidationError(BaseUtilError):
-    """Raised when input data validation fails."""
-
-    def __init__(self, message: str, field_name: Optional[str] = None) -> None:
-        super().__init__(message, code=400)
-        self.field_name: Optional[str] = field_name
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Include the problematic field name in the error payload."""
-        payload: Dict[str, Any] = super().to_dict()
-        if self.field_name:
-            payload["field_name"] = self.field_name
-        return payload
+class ValidationError(UtilError):
+    """Raised when a validation check fails on input data."""
 
 
-class ConfigurationError(BaseUtilError):
-    """Raised when configuration settings are missing or malformed."""
-
-    def __init__(self, message: str, config_key: Optional[str] = None) -> None:
-        super().__init__(message, code=500)
-        self.config_key: Optional[str] = config_key
+class ConfigurationError(UtilError):
+    """Raised when configuration properties are missing or malformed."""
 
 
-class ResourceNotFoundError(BaseUtilError):
-    """Raised when a requested resource cannot be located."""
+class OperationTimeoutError(UtilError):
+    """Raised when a timed operation exceeds its allocated duration."""
 
-    def __init__(self, message: str, resource_id: Optional[str] = None) -> None:
-        super().__init__(message, code=404)
-        self.resource_id: Optional[str] = resource_id
+
+def format_exception_info(exc: Exception, include_traceback: bool = False) -> str:
+    """Format an exception into a structured and readable string.
+
+    Args:
+        exc: The exception instance to format.
+        include_traceback: If True, appends the traceback block.
+    """
+    exc_type: Type[BaseException] = type(exc)
+    msg = f"{exc_type.__name__}: {str(exc)}"
+
+    if include_traceback and exc.__traceback__:
+        tb = traceback.format_exception(exc_type, exc, exc.__traceback__)
+        msg += "\nTraceback (most recent call last):\n" + "".join(tb)
+
+    return msg
