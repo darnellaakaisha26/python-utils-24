@@ -1,38 +1,35 @@
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional
 
-class DataHandler:
-    """Handles transformation of dictionary datasets."""
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """
+    Flattens a nested dictionary into a single-level dictionary.
+    """
+    items: List[tuple] = []
+    for k, v in data.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-    def __init__(self, processors: Optional[List[Callable[[Any], Any]]] = None) -> None:
-        self.processors = processors or []
+def sanitize_data(data: Any, allowed_types: Optional[tuple] = None) -> Any:
+    """
+    Recursively removes non-serializable objects from input data.
+    """
+    if allowed_types is None:
+        allowed_types = (str, int, float, bool, type(None), list, dict)
 
-    def process_payload(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Apply sequence of processors to data values.
-        
-        Args:
-            data: Dictionary containing key-value pairs.
-            
-        Returns:
-            Processed dictionary with modified values.
-        """
-        result: Dict[str, Any] = {}
-        for key, value in data.items():
-            processed_value = value
-            for func in self.processors:
-                processed_value = func(processed_value)
-            result[key] = processed_value
-        return result
+    if isinstance(data, dict):
+        return {str(k): sanitize_data(v, allowed_types) for k, v in data.items()}
+    if isinstance(data, list):
+        return [sanitize_data(i, allowed_types) for i in data]
+    
+    return data if isinstance(data, allowed_types) else str(data)
 
-    def validate_keys(self, data: Dict[str, Any], required: List[str]) -> bool:
-        """
-        Ensure all required keys are present.
-        
-        Args:
-            data: Dictionary to inspect.
-            required: List of mandatory keys.
-            
-        Returns:
-            Boolean indicating presence of all keys.
-        """
-        return all(key in data for key in required)
+def batch_process(data: List[Any], chunk_size: int = 10):
+    """
+    Generator yielding chunks of a list.
+    """
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
