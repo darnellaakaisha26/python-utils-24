@@ -1,58 +1,39 @@
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-
-class ConfigManager:
-    """Handles application configuration loading with robust edge-case handling."""
-
-    def __init__(self, config_path: Optional[str] = None):
-        self.config_path = config_path
-        self._config: Dict[str, Any] = {}
-        if config_path:
-            self.load_from_file(config_path)
-
-    def load_from_file(self, filepath: str) -> Dict[str, Any]:
-        """Load configuration from a JSON file with validation and safe parsing."""
-        if not isinstance(filepath, str) or not filepath.strip():
-            raise ValueError("Configuration filepath must be a non-empty string")
-
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"Configuration file not found: {filepath}")
-
-        if not os.path.access(filepath, os.R_OK):
-            raise PermissionError(f"Configuration file is not readable: {filepath}")
-
+def load_config(path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Loads configuration from a JSON file, merging with provided defaults.
+    """
+    config = defaults.copy()
+    
+    if os.path.exists(path):
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in '{filepath}': {e.msg} at line {e.lineno}") from e
-        except Exception as e:
-            raise RuntimeError(f"Failed to read configuration '{filepath}': {str(e)}") from e
+            with open(path, 'r') as f:
+                file_data = json.load(f)
+                if isinstance(file_data, dict):
+                    config.update(file_data)
+        except (json.JSONDecodeError, IOError):
+            # Fallback to defaults on file access or parsing errors
+            pass
+            
+    return config
 
-        if not isinstance(data, dict):
-            raise TypeError(f"Root config must be a JSON object, got {type(data).__name__}")
-
-        self._config.update(data)
-        return self._config
-
-    def get(self, key: str, default: Any = None, expected_type: Optional[type] = None) -> Any:
-        """Safely retrieve nested config values using dot notation with fallback type conversion."""
-        if not key or not isinstance(key, str):
-            return default
-
-        current = self._config
-        for part in key.split("."):
-            if isinstance(current, dict) and part in current:
-                current = current[part]
+def get_env_config(prefix: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Overwrites config values with matching environment variables.
+    """
+    config = defaults.copy()
+    for key in config:
+        env_key = f"{prefix}_{key.upper()}"
+        if env_key in os.environ:
+            val = os.environ[env_key]
+            # Attempt basic type preservation
+            if isinstance(config[key], bool):
+                config[key] = val.lower() in ('true', '1', 'yes')
+            elif isinstance(config[key], int):
+                config[key] = int(val)
             else:
-                return default
-
-        if expected_type is not None and not isinstance(current, expected_type):
-            try:
-                return expected_type(current)
-            except (ValueError, TypeError):
-                return default
-
-        return current
+                config[key] = val
+    return config
