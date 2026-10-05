@@ -1,31 +1,36 @@
-from typing import Any, Dict, List, Optional, Callable
+import logging
+from typing import Any, Optional
 
-class DataProcessor:
-    """Handles data transformation and validation tasks."""
+logger = logging.getLogger(__name__)
 
-    def __init__(self, settings: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize with optional configuration settings."""
-        self.settings = settings or {}
+def safe_execute(func: callable, *args: Any, **kwargs: Any) -> Optional[Any]:
+    """Executes a callable with robust error handling for edge cases."""
+    try:
+        if not callable(func):
+            raise ValueError("Provided object is not callable")
+        return func(*args, **kwargs)
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid input arguments: {e}")
+        return None
+    except Exception as e:
+        logger.exception(f"Unexpected runtime error during execution: {e}")
+        return None
 
-    def transform_items(self, items: List[Any], func: Callable[[Any], Any]) -> List[Any]:
-        """Apply a function to each item in a list with error catching."""
-        results: List[Any] = []
-        for item in items:
-            try:
-                results.append(func(item))
-            except Exception:
-                continue
-        return results
+def get_nested(data: dict, keys: list, default: Any = None) -> Any:
+    """Safely retrieves nested dictionary keys with fallback."""
+    if not isinstance(data, dict):
+        return default
+    
+    current = data
+    try:
+        for key in keys:
+            current = current[key]
+        return current
+    except (KeyError, TypeError, IndexError):
+        return default
 
-    def filter_by_key(self, data: List[Dict[str, Any]], key: str, value: Any) -> List[Dict[str, Any]]:
-        """Return dicts matching a specific key-value pair."""
-        return [item for item in data if item.get(key) == value]
-
-    def get_summary(self, data: List[Dict[str, Any]]) -> Dict[str, int]:
-        """Calculate counts based on internal settings criteria."""
-        return {"total": len(data), "processed": len([i for i in data if i.get("active")])}
-
-    @staticmethod
-    def validate_payload(payload: Any) -> bool:
-        """Check if payload is a non-empty dictionary."""
-        return isinstance(payload, dict) and len(payload) > 0
+if __name__ == "__main__":
+    # Example usage
+    result = safe_execute(lambda x: 10 / x, 0)
+    value = get_nested({"a": {"b": 1}}, ["a", "c"], default="missing")
+    print(f"Safe result: {result}, Nested value: {value}")
