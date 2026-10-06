@@ -1,35 +1,54 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Tuple
 
-def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """
-    Flattens a nested dictionary into a single-level dictionary.
-    """
-    items: List[tuple] = []
-    for k, v in data.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
 
-def sanitize_data(data: Any, allowed_types: Optional[tuple] = None) -> Any:
-    """
-    Recursively removes non-serializable objects from input data.
-    """
-    if allowed_types is None:
-        allowed_types = (str, int, float, bool, type(None), list, dict)
+class ProcessingError(Exception):
+    """Exception raised for unrecoverable processing errors."""
+    pass
 
-    if isinstance(data, dict):
-        return {str(k): sanitize_data(v, allowed_types) for k, v in data.items()}
-    if isinstance(data, list):
-        return [sanitize_data(i, allowed_types) for i in data]
-    
-    return data if isinstance(data, allowed_types) else str(data)
 
-def batch_process(data: List[Any], chunk_size: int = 10):
-    """
-    Generator yielding chunks of a list.
-    """
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
+class PayloadHandler:
+    """Handles and validates incoming data payloads before processing."""
+
+    def __init__(self, min_value_length: int = 1):
+        self.min_value_length = min_value_length
+
+    def validate_item(self, item: Any) -> Dict[str, Any]:
+        """Validates individual payload items for schema compliance."""
+        if not isinstance(item, dict):
+            raise TypeError("Payload must be a dictionary")
+
+        if "id" not in item or "value" not in item:
+            raise KeyError("Missing required keys: 'id' and 'value'")
+
+        if not isinstance(item["id"], int):
+            raise TypeError("Field 'id' must be an integer")
+
+        if not isinstance(item["value"], str):
+            raise TypeError("Field 'value' must be a string")
+
+        if len(item["value"].strip()) < self.min_value_length:
+            raise ValueError(
+                f"Field 'value' must be at least {self.min_value_length} chars"
+            )
+
+        return item
+
+    def process_batch(
+        self, batch: List[Any]
+    ) -> Tuple[List[Dict[str, Any]], List[str]]:
+        """Processes and validates a batch of inputs in the main loop."""
+        successful_items = []
+        errors = []
+
+        for index, item in enumerate(batch):
+            try:
+                validated_item = self.validate_item(item)
+                processed_item = {
+                    "id": validated_item["id"],
+                    "value": validated_item["value"].strip().upper()
+                }
+                successful_items.append(processed_item)
+            except (TypeError, KeyError, ValueError) as err:
+                errors.append(f"Index {index} rejected: {err}")
+
+        return successful_items, errors
