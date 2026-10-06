@@ -1,36 +1,41 @@
-import logging
-from typing import Any, Optional
+import time
+from functools import wraps
+from typing import Any, Dict, Generator, Iterable, Callable
 
-logger = logging.getLogger(__name__)
+def deep_merge(dict_a: Dict[Any, Any], dict_b: Dict[Any, Any]) -> Dict[Any, Any]:
+    """Recursively merges dict_b into dict_a, returning a new dictionary."""
+    result = dict_a.copy()
+    for key, value in dict_b.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
-def safe_execute(func: callable, *args: Any, **kwargs: Any) -> Optional[Any]:
-    """Executes a callable with robust error handling for edge cases."""
-    try:
-        if not callable(func):
-            raise ValueError("Provided object is not callable")
-        return func(*args, **kwargs)
-    except (ValueError, TypeError) as e:
-        logger.error(f"Invalid input arguments: {e}")
-        return None
-    except Exception as e:
-        logger.exception(f"Unexpected runtime error during execution: {e}")
-        return None
+def chunk_iterable(iterable: Iterable[Any], size: int) -> Generator[list, None, None]:
+    """Yields successive chunks of a given size from an iterable."""
+    chunk = []
+    for item in iterable:
+        chunk.append(item)
+        if len(chunk) == size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
 
-def get_nested(data: dict, keys: list, default: Any = None) -> Any:
-    """Safely retrieves nested dictionary keys with fallback."""
-    if not isinstance(data, dict):
-        return default
-    
-    current = data
-    try:
-        for key in keys:
-            current = current[key]
-        return current
-    except (KeyError, TypeError, IndexError):
-        return default
-
-if __name__ == "__main__":
-    # Example usage
-    result = safe_execute(lambda x: 10 / x, 0)
-    value = get_nested({"a": {"b": 1}}, ["a", "c"], default="missing")
-    print(f"Safe result: {result}, Nested value: {value}")
+def retry(retries: int = 3, delay: float = 1.0) -> Callable:
+    """Decorator to retry a function call on failure with a delay."""
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    if attempt < retries - 1:
+                        time.sleep(delay)
+            raise last_exception or RuntimeError("Retry failed")
+        return wrapper
+    return decorator
