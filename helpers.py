@@ -1,27 +1,34 @@
-import time
-import functools
 import logging
 
 logger = logging.getLogger(__name__)
 
-def retry_network_op(retries=3, delay=1, backoff=2, exceptions=(ConnectionError, TimeoutError)):
-    """
-    Decorator for retrying network operations with exponential backoff.
-    """
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_delay = delay
-            for attempt in range(retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    if attempt == retries - 1:
-                        logger.error(f"Final attempt failed for {func.__name__}: {e}")
-                        raise
-                    
-                    logger.warning(f"Attempt {attempt + 1} failed, retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-        return wrapper
-    return decorator
+def validate_input_data(data: dict) -> bool:
+    """Validate schema and content of input dictionary."""
+    required_fields = ['id', 'payload']
+    
+    if not isinstance(data, dict):
+        logger.error("Invalid input type: expected dictionary")
+        return False
+        
+    if not all(field in data for field in required_fields):
+        logger.warning("Missing required fields in payload")
+        return False
+        
+    if not isinstance(data['id'], int):
+        logger.warning("Invalid type for id: expected integer")
+        return False
+        
+    return True
+
+def process_main_loop(items: list):
+    """Execute processing with input validation safeguards."""
+    for item in items:
+        if not validate_input_data(item):
+            continue
+            
+        try:
+            # Simulate core business logic
+            result = item['payload'] * 2
+            logger.info(f"Processed item {item['id']}: {result}")
+        except Exception as e:
+            logger.error(f"Processing error on item {item['id']}: {e}")
