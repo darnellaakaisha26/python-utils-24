@@ -1,33 +1,32 @@
-import logging
+from typing import List, Dict, Any, Optional
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+class DataProcessor:
+    """Utility class for sanitizing and transforming input dictionaries."""
 
-def validate_payload(data):
-    """Ensure input data matches expected schema."""
-    if not isinstance(data, dict):
-        raise ValueError("Payload must be a dictionary")
-    if "id" not in data or not isinstance(data["id"], int):
-        raise ValueError("Valid integer 'id' field required")
-    return True
+    def __init__(self, key_mapping: Dict[str, str]) -> None:
+        """Initialize processor with a key translation map."""
+        self.key_mapping = key_mapping
 
-def process_items(items):
-    """Main processing loop with input validation."""
-    for index, item in enumerate(items):
-        try:
-            validate_payload(item)
-            # Simulate core processing logic
-            result = item.get("id") * 2
-            logger.info(f"Processed item {index}: result={result}")
-        except (ValueError, TypeError) as e:
-            logger.error(f"Skipping invalid item at index {index}: {e}")
-            continue
+    def process_data(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Transform list of dicts using key_mapping and stripping whitespace."""
+        results: List[Dict[str, Any]] = []
 
-if __name__ == "__main__":
-    dataset = [
-        {"id": 10, "name": "alpha"},
-        {"id": "invalid", "name": "beta"},
-        {"id": 20, "name": "gamma"},
-        "corrupted_data"
-    ]
-    process_items(dataset)
+        for item in items:
+            processed: Dict[str, Any] = {}
+            for key, value in item.items():
+                new_key = self.key_mapping.get(key, key)
+                if isinstance(value, str):
+                    processed[new_key] = value.strip()
+                else:
+                    processed[new_key] = value
+            results.append(processed)
+
+        return results
+
+    def filter_nulls(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove keys with None values from the provided items."""
+        return [{k: v for k, v in item.items() if v is not None} for item in items]
+
+    def get_summary(self, items: List[Dict[str, Any]]) -> Optional[int]:
+        """Return the count of items in the current batch."""
+        return len(items) if items else None
