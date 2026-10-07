@@ -1,61 +1,37 @@
 import re
-from typing import Union, Any
-from urllib.parse import urlparse
+from typing import Any, Optional
 
-# Regular expression for a standard email format validation
-EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+\$")
+class DataValidator:
+    """Utility class for common data structure validation."""
 
+    EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
 
-def is_valid_email(email: Any) -> bool:
-    """Validate if the provided value is a syntactically correct email address.
+    @staticmethod
+    def is_email(value: Any) -> bool:
+        """Check if input is a valid email string."""
+        if not isinstance(value, str):
+            return False
+        return bool(DataValidator.EMAIL_PATTERN.match(value))
 
-    Args:
-        email: The input to validate. Usually a string.
+    @staticmethod
+    def is_non_empty_string(value: Any) -> bool:
+        """Verify string existence and content."""
+        return isinstance(value, str) and len(value.strip()) > 0
 
-    Returns:
-        True if the input is a valid email string, False otherwise.
-    """
-    if not isinstance(email, str):
-        return False
-    return bool(EMAIL_REGEX.match(email))
+    @staticmethod
+    def is_valid_port(value: Any) -> bool:
+        """Ensure integer is a valid network port."""
+        try:
+            port = int(value)
+            return 1 <= port <= 65535
+        except (ValueError, TypeError):
+            return False
 
-
-def is_valid_url(url: Any) -> bool:
-    """Verify if a given string is a properly formatted URL.
-
-    Args:
-        url: The input string to check.
-
-    Returns:
-        True if the input is a valid HTTP/HTTPS URL, False otherwise.
-    """
-    if not isinstance(url, str):
-        return False
-    try:
-        parsed = urlparse(url)
-        return all([parsed.scheme in ("http", "https"), parsed.netloc])
-    except Exception:
-        return False
-
-
-def validate_numeric_range(
-    value: Union[int, float],
-    min_value: Union[int, float],
-    max_value: Union[int, float],
-) -> bool:
-    """Check if a numeric value falls within a specified inclusive range.
-
-    Args:
-        value: The number to validate.
-        min_value: The lower bound of the range.
-        max_value: The upper bound of the range.
-
-    Returns:
-        True if value is between min_value and max_value inclusive, False otherwise.
-
-    Raises:
-        ValueError: If min_value is greater than max_value.
-    """
-    if min_value > max_value:
-        raise ValueError("Minimum value cannot be greater than maximum value.")
-    return min_value <= value <= max_value
+def validate_schema(data: dict, schema: dict) -> bool:
+    """Deep schema check for dictionary inputs."""
+    for key, validator_func in schema.items():
+        if key not in data:
+            return False
+        if not validator_func(data[key]):
+            return False
+    return True
