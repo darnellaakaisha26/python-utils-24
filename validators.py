@@ -1,37 +1,35 @@
 import re
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-class DataValidator:
-    """Utility class for common data structure validation."""
+# regex patterns for core application fields
+ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
+MAX_INPUT_LENGTH = 1024
 
-    EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+def validate_payload(data: Dict[str, Any]) -> bool:
+    """verify payload structure and content constraints"""
+    if not isinstance(data, dict):
+        return False
 
-    @staticmethod
-    def is_email(value: Any) -> bool:
-        """Check if input is a valid email string."""
-        if not isinstance(value, str):
-            return False
-        return bool(DataValidator.EMAIL_PATTERN.match(value))
+    # check mandatory fields
+    if 'id' not in data or 'value' not in data:
+        return False
 
-    @staticmethod
-    def is_non_empty_string(value: Any) -> bool:
-        """Verify string existence and content."""
-        return isinstance(value, str) and len(value.strip()) > 0
+    # validate data types and bounds
+    if not isinstance(data['id'], str) or not ID_PATTERN.match(data['id']):
+        return False
 
-    @staticmethod
-    def is_valid_port(value: Any) -> bool:
-        """Ensure integer is a valid network port."""
-        try:
-            port = int(value)
-            return 1 <= port <= 65535
-        except (ValueError, TypeError):
-            return False
+    if len(str(data['value'])) > MAX_INPUT_LENGTH:
+        return False
 
-def validate_schema(data: dict, schema: dict) -> bool:
-    """Deep schema check for dictionary inputs."""
-    for key, validator_func in schema.items():
-        if key not in data:
-            return False
-        if not validator_func(data[key]):
-            return False
     return True
+
+def sanitize_input(value: Any) -> Optional[str]:
+    """clean string input for downstream processing"""
+    if not isinstance(value, str):
+        return None
+    
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+        
+    return cleaned[:MAX_INPUT_LENGTH]
