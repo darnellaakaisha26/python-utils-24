@@ -1,41 +1,44 @@
-"""Custom exception classes and formatting utilities for general operations."""
+import functools
+from typing import Callable, Any
 
-import traceback
-from typing import Optional, Type
+class PerformanceOptimizationError(Exception):
+    """Base exception for utility performance errors."""
+    pass
 
-
-class UtilError(Exception):
-    """Base exception class for all library-specific errors."""
-
-    def __init__(self, message: str, original_exception: Optional[Exception] = None) -> None:
-        super().__init__(message)
-        self.original_exception = original_exception
-
-
-class ValidationError(UtilError):
-    """Raised when a validation check fails on input data."""
-
-
-class ConfigurationError(UtilError):
-    """Raised when configuration properties are missing or malformed."""
-
-
-class OperationTimeoutError(UtilError):
-    """Raised when a timed operation exceeds its allocated duration."""
-
-
-def format_exception_info(exc: Exception, include_traceback: bool = False) -> str:
-    """Format an exception into a structured and readable string.
-
-    Args:
-        exc: The exception instance to format.
-        include_traceback: If True, appends the traceback block.
+def memoize_with_ttl(ttl_seconds: int) -> Callable:
     """
-    exc_type: Type[BaseException] = type(exc)
-    msg = f"{exc_type.__name__}: {str(exc)}"
+    Decorator to cache function results with simple TTL expiration.
+    Uses a dictionary for O(1) lookups and performance efficiency.
+    """
+    def decorator(func: Callable) -> Callable:
+        cache = {}
 
-    if include_traceback and exc.__traceback__:
-        tb = traceback.format_exception(exc_type, exc, exc.__traceback__)
-        msg += "\nTraceback (most recent call last):\n" + "".join(tb)
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            import time
+            key = (args, frozenset(kwargs.items()))
+            current_time = time.time()
 
-    return msg
+            if key in cache:
+                result, timestamp = cache[key]
+                if current_time - timestamp < ttl_seconds:
+                    return result
+            
+            result = func(*args, **kwargs)
+            cache[key] = (result, current_time)
+            return result
+        return wrapper
+    return decorator
+
+class OptimizedProcessor:
+    """Interface for high-performance utility operations."""
+    def __init__(self, data_limit: int = 1000):
+        self._limit = data_limit
+
+    @memoize_with_ttl(ttl_seconds=60)
+    def compute_heavy_metric(self, input_val: int) -> int:
+        """Simulates computation that benefits from memoization."""
+        if input_val > self._limit:
+            raise PerformanceOptimizationError("Input exceeds limit")
+        # Simulated intensive operation
+        return sum(i * i for i in range(input_val))
