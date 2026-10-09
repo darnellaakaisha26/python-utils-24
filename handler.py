@@ -1,24 +1,35 @@
 import json
+import os
 from typing import Any, Dict, Optional
 
-def safe_json_load(data: str, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Parses JSON string or returns default."""
+def load_json(filepath: str) -> Dict[str, Any]:
+    """Read and parse a JSON file safely."""
+    if not os.path.exists(filepath):
+        return {}
     try:
-        return json.loads(data)
-    except (json.JSONDecodeError, TypeError):
-        return default if default is not None else {}
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flattens nested dictionary structures."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+def save_json(data: Dict[str, Any], filepath: str) -> bool:
+    """Serialize dictionary to JSON file."""
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except IOError:
+        return False
 
-def sanitize_keys(data: Dict[str, Any], prefix: str = 'clean_') -> Dict[str, Any]:
-    """Prepends prefix to dictionary keys."""
-    return {f"{prefix}{k}": v for k, v in data.items()}
+def get_env_variable(key: str, default: Optional[str] = None) -> str:
+    """Retrieve environment variable with fallback."""
+    return os.environ.get(key, default) or ""
+
+def chunk_list(data: list, size: int):
+    """Split list into smaller chunks."""
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
+
+def sanitize_path(path: str) -> str:
+    """Remove dangerous characters from path strings."""
+    return path.replace("..", "").lstrip("/")
