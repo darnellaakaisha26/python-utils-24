@@ -1,36 +1,38 @@
-import logging
-from typing import Any, Optional
+from typing import Dict, Any, Mapping
 
-logger = logging.getLogger(__name__)
+def flatten_dict(target: Mapping[str, Any], sep: str = '_', parent_key: str = '') -> Dict[str, Any]:
+    """
+    Recursively flattens a nested dictionary structure.
 
-class DataProcessor:
-    """Utility class for safe data transformation."""
+    Args:
+        target: The dictionary to flatten.
+        sep: The separator to use between keys.
+        parent_key: The accumulated parent key string.
+    """
+    flat_dict = {}
+    for key, val in target.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(val, dict):
+            flat_dict.update(flatten_dict(val, sep=sep, parent_key=new_key))
+        else:
+            flat_dict[new_key] = val
+    return flat_dict
 
-    def process_item(self, data: Any) -> Optional[Any]:
-        """Attempts to parse and process input data safely."""
-        if data is None:
-            logger.warning("Attempted to process null data input")
-            return None
+def unflatten_dict(target: Mapping[str, Any], sep: str = '_') -> Dict[str, Any]:
+    """
+    Reconstructs a nested dictionary from a flattened dictionary.
 
-        try:
-            if not isinstance(data, (dict, list, str)):
-                raise ValueError(f"Unsupported data type: {type(data).__name__}")
-
-            # Simulate processing logic
-            if isinstance(data, str) and not data.strip():
-                return None
-
-            return self._transform(data)
-
-        except (ValueError, TypeError) as e:
-            logger.error(f"Data transformation failed: {e}")
-            return None
-        except Exception as e:
-            logger.critical(f"Unexpected system failure: {e}", exc_info=True)
-            raise
-
-    def _transform(self, data: Any) -> Any:
-        """Internal transformation logic helper."""
-        if isinstance(data, dict):
-            return {str(k): v for k, v in data.items()}
-        return str(data).strip()
+    Args:
+        target: The flattened dictionary to expand.
+        sep: The separator used in the keys.
+    """
+    nested_dict: Dict[str, Any] = {}
+    for key, val in target.items():
+        parts = key.split(sep)
+        cursor = nested_dict
+        for part in parts[:-1]:
+            if part not in cursor or not isinstance(cursor[part], dict):
+                cursor[part] = {}
+            cursor = cursor[part]
+        cursor[parts[-1]] = val
+    return nested_dict
