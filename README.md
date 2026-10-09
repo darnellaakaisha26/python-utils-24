@@ -1,15 +1,13 @@
 # python-utils-24
 
-`python-utils-24` is a collection of high-performance utility functions designed to streamline repetitive Python development tasks. It focuses on reducing boilerplate code for data serialization, file system manipulation, and asynchronous task management.
-
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+A curated collection of production-ready Python helper functions designed to streamline daily development tasks. This library focuses on minimizing boilerplate code for data manipulation, file system operations, and performance monitoring.
 
 ## Features
 
-*   **File Streamliner**: Simplified context managers for efficient I/O operations and directory traversal.
-*   **Data Sanitizers**: Robust decorators to enforce schema validation and type safety on function arguments.
-*   **Async Dispatcher**: Lightweight wrappers to convert blocking I/O calls into non-blocking coroutines without overhead.
-*   **Environment Manager**: Auto-loading functionality for `.env` files with strict type-casting capabilities.
+*   **File Streamliner:** Simplified context managers for robust JSON/CSV serialization and directory traversal.
+*   **Performance Decorators:** Easy-to-use decorators for benchmarking function execution time and memory usage.
+*   **Type-Safe Validators:** Utility functions for validating common data formats, including email addresses, URLs, and complex nested dictionaries.
+*   **Logger Factory:** Pre-configured logging templates with rotating file support and colored terminal output.
 
 ## Installation
 
@@ -19,36 +17,35 @@ Install the package via pip:
 pip install python-utils-24
 ```
 
-For development mode and test dependencies:
+Or add it to your `requirements.txt`:
 
-```bash
-git clone https://github.com/Developer/python-utils-24.git
-cd python-utils-24
-pip install -e .[dev]
+```text
+python-utils-24>=1.0.0
 ```
 
 ## Basic Usage
 
-Quickly handle file reading and environment variable management using the utility modules:
+Quickly profile your functions and manage configuration files with minimal setup:
 
 ```python
+from pyutils24.decorators import time_execution
 from pyutils24.io import load_json
-from pyutils24.env import get_env
 
-# Load configurations securely
-db_url = get_env("DATABASE_URL", default="localhost:5432")
+# Benchmark function performance
+@time_execution
+def process_data(data):
+    return [d * 2 for d in data]
 
-# Robust JSON processing
-data = load_json("config.json")
+# Load and validate configuration
+config = load_json("settings.json")
 
-print(f"Connected to: {db_url}")
-print(f"Data retrieved: {data['version']}")
+# Run utility
+result = process_data([1, 2, 3])
+print(f"Result: {result}")
 ```
 
-## Contributing
-
-Contributions are welcome! Please open an issue to discuss proposed changes before submitting a pull request. Ensure all new utilities include corresponding unit tests in the `/tests` directory.
-
 ## License
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Distributed under the MIT License. See `LICENSE` for more information.
