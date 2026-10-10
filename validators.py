@@ -1,35 +1,35 @@
 import re
-from typing import Any, Dict, Optional
 
-# regex patterns for core application fields
-ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
-MAX_INPUT_LENGTH = 1024
-
-def validate_payload(data: Dict[str, Any]) -> bool:
-    """verify payload structure and content constraints"""
-    if not isinstance(data, dict):
+def validate_input_data(data: dict) -> bool:
+    """Validates expected keys and data formats."""
+    required_keys = {'id', 'payload', 'timestamp'}
+    
+    # Check for missing keys
+    if not all(key in data for key in required_keys):
         return False
 
-    # check mandatory fields
-    if 'id' not in data or 'value' not in data:
+    # Validate ID format (must be alphanumeric)
+    if not re.match(r'^[a-zA-Z0-9]+$', str(data['id'])):
         return False
 
-    # validate data types and bounds
-    if not isinstance(data['id'], str) or not ID_PATTERN.match(data['id']):
-        return False
-
-    if len(str(data['value'])) > MAX_INPUT_LENGTH:
+    # Validate payload is non-empty
+    if not data['payload']:
         return False
 
     return True
 
-def sanitize_input(value: Any) -> Optional[str]:
-    """clean string input for downstream processing"""
-    if not isinstance(value, str):
-        return None
-    
-    cleaned = value.strip()
-    if not cleaned:
-        return None
-        
-    return cleaned[:MAX_INPUT_LENGTH]
+def process_main_loop(data_stream: list):
+    """Main loop with validation logic."""
+    processed = []
+    for item in data_stream:
+        if not isinstance(item, dict):
+            continue
+            
+        if validate_input_data(item):
+            # Logic for data handling
+            processed.append(item)
+        else:
+            # Log invalid input and skip
+            print(f"Skipping invalid entry: {item}")
+            
+    return processed
