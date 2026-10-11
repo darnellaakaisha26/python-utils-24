@@ -1,35 +1,42 @@
 import json
-import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
-def load_json(filepath: str) -> Dict[str, Any]:
-    """Read and parse a JSON file safely."""
-    if not os.path.exists(filepath):
-        return {}
+def sanitize_data(data: Any) -> Any:
+    """Recursively clean dictionary data for serialization."""
+    if isinstance(data, dict):
+        return {str(k): sanitize_data(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [sanitize_data(i) for i in data]
+    if isinstance(data, (set, tuple)):
+        return [sanitize_data(i) for i in list(data)]
+    return data
+
+def safe_load_json(file_path: str) -> Dict[str, Any]:
+    """Safe file parsing with empty dict fallback."""
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError):
+    except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
-def save_json(data: Dict[str, Any], filepath: str) -> bool:
-    """Serialize dictionary to JSON file."""
-    try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except IOError:
-        return False
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flatten nested dictionary structure to single level."""
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-def get_env_variable(key: str, default: Optional[str] = None) -> str:
-    """Retrieve environment variable with fallback."""
-    return os.environ.get(key, default) or ""
-
-def chunk_list(data: list, size: int):
-    """Split list into smaller chunks."""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
-
-def sanitize_path(path: str) -> str:
-    """Remove dangerous characters from path strings."""
-    return path.replace("..", "").lstrip("/")
+def format_byte_size(size_bytes: int) -> str:
+    """Human readable string for byte sizes."""
+    if size_bytes == 0:
+        return "0B"
+    units = ("B", "KB", "MB", "GB", "TB")
+    i = 0
+    while size_bytes >= 1024 and i < len(units) - 1:
+        size_bytes /= 1024.0
+        i += 1
+    return f"{size_bytes:.2f}{units[i]}"
