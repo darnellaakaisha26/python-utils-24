@@ -1,60 +1,53 @@
- """Batch data processor with built-in input validation."""
-
+import logging
 from typing import Any, Dict, List, Tuple
 
-
-def validate_item(item: Any) -> Tuple[bool, str]:
-    """Validate an individual data record prior to processing."""
-    if not isinstance(item, dict):
-        return False, "Record must be a dictionary"
-
-    if "id" not in item or not isinstance(item["id"], (int, str)):
-        return False, "Missing or invalid required field 'id'"
-
-    if "value" not in item or not isinstance(item["value"], (int, float)):
-        return False, "Missing or non-numeric field 'value'"
-
-    if item["value"] < 0:
-        return False, "Field 'value' must be non-negative"
-
-    return True, ""
+logger = logging.getLogger(__name__)
 
 
-def process_batch(items: List[Any]) -> Dict[str, List[Any]]:
-    """Main processing loop that validates and transforms input items."""
-    successful_records = []
-    failed_records = []
-
-    # Main processing loop with explicit input validation
-    for index, item in enumerate(items):
-        is_valid, error_message = validate_item(item)
-
-        if not is_valid:
-            failed_records.append({
-                "index": index,
-                "item": item,
-                "reason": error_message
-            })
-            continue
-
-        # Process valid item data
-        transformed_val = round(float(item["value"]) * 1.15, 2)
-        successful_records.append({
-            "id": item["id"],
-            "processed_value": transformed_val
-        })
-
-    return {"successful": successful_records, "failed": failed_records}
+class ValidationError(Exception):
+    """Custom exception raised when record validation fails."""
+    pass
 
 
-if __name__ == "__main__":
-    sample_data = [
-        {"id": 101, "value": 50.0},
-        {"id": 102, "value": -5.0},
-        {"id": "103", "value": 22.5},
-        {"value": 10.0},
-        "invalid_record_structure"
-    ]
-    results = process_batch(sample_data)
-    print(f"Processed {len(results['successful'])} valid items.")
-    print(f"Rejected {len(results['failed'])} invalid items.")
+class BatchProcessor:
+    """Processes payload items with pre-execution input validation."""
+
+    def __init__(self, required_fields: List[str]):
+        self.required_fields = required_fields
+
+    def _validate_item(self, item: Any) -> Dict[str, Any]:
+        """Validate type and schema requirements for an individual record."""
+        if not isinstance(item, dict):
+            raise ValidationError(f"Invalid type '{type(item).__name__}', expected dictionary")
+
+        for field in self.required_fields:
+            if field not in item:
+                raise ValidationError(f"Missing required field: '{field}'")
+            if item[field] is None:
+                raise ValidationError(f"Field '{field}' cannot be None")
+
+        return item
+
+    def process_batch(self, items: List[Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Main processing loop executing validation before item handling."""
+        processed = []
+        errors = []
+
+        for index, raw_item in enumerate(items):
+            try:
+                # Validate input integrity prior to processing
+                valid_item = self._validate_item(raw_item)
+                
+                # Transform valid data
+                clean_record = {k.strip(): str(v).strip() for k, v in valid_item.items()}
+                processed.append(clean_record)
+                logger.debug(f"Successfully processed batch index {index}")
+
+            except ValidationError as exc:
+                logger.warning(f"Validation error at index {index}: {exc}")
+                errors.append({"index": index, "raw": raw_item, "reason": str(exc)})
+            except Exception as exc:
+                logger.error(f"Unexpected processing failure at index {index}: {exc}")
+                errors.append({"index": index, "raw": raw_item, "reason": "Internal error"})
+
+        return processed, errors
