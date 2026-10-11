@@ -1,38 +1,60 @@
-from typing import Dict, Any, Mapping
+ """Batch data processor with built-in input validation."""
 
-def flatten_dict(target: Mapping[str, Any], sep: str = '_', parent_key: str = '') -> Dict[str, Any]:
-    """
-    Recursively flattens a nested dictionary structure.
+from typing import Any, Dict, List, Tuple
 
-    Args:
-        target: The dictionary to flatten.
-        sep: The separator to use between keys.
-        parent_key: The accumulated parent key string.
-    """
-    flat_dict = {}
-    for key, val in target.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
-        if isinstance(val, dict):
-            flat_dict.update(flatten_dict(val, sep=sep, parent_key=new_key))
-        else:
-            flat_dict[new_key] = val
-    return flat_dict
 
-def unflatten_dict(target: Mapping[str, Any], sep: str = '_') -> Dict[str, Any]:
-    """
-    Reconstructs a nested dictionary from a flattened dictionary.
+def validate_item(item: Any) -> Tuple[bool, str]:
+    """Validate an individual data record prior to processing."""
+    if not isinstance(item, dict):
+        return False, "Record must be a dictionary"
 
-    Args:
-        target: The flattened dictionary to expand.
-        sep: The separator used in the keys.
-    """
-    nested_dict: Dict[str, Any] = {}
-    for key, val in target.items():
-        parts = key.split(sep)
-        cursor = nested_dict
-        for part in parts[:-1]:
-            if part not in cursor or not isinstance(cursor[part], dict):
-                cursor[part] = {}
-            cursor = cursor[part]
-        cursor[parts[-1]] = val
-    return nested_dict
+    if "id" not in item or not isinstance(item["id"], (int, str)):
+        return False, "Missing or invalid required field 'id'"
+
+    if "value" not in item or not isinstance(item["value"], (int, float)):
+        return False, "Missing or non-numeric field 'value'"
+
+    if item["value"] < 0:
+        return False, "Field 'value' must be non-negative"
+
+    return True, ""
+
+
+def process_batch(items: List[Any]) -> Dict[str, List[Any]]:
+    """Main processing loop that validates and transforms input items."""
+    successful_records = []
+    failed_records = []
+
+    # Main processing loop with explicit input validation
+    for index, item in enumerate(items):
+        is_valid, error_message = validate_item(item)
+
+        if not is_valid:
+            failed_records.append({
+                "index": index,
+                "item": item,
+                "reason": error_message
+            })
+            continue
+
+        # Process valid item data
+        transformed_val = round(float(item["value"]) * 1.15, 2)
+        successful_records.append({
+            "id": item["id"],
+            "processed_value": transformed_val
+        })
+
+    return {"successful": successful_records, "failed": failed_records}
+
+
+if __name__ == "__main__":
+    sample_data = [
+        {"id": 101, "value": 50.0},
+        {"id": 102, "value": -5.0},
+        {"id": "103", "value": 22.5},
+        {"value": 10.0},
+        "invalid_record_structure"
+    ]
+    results = process_batch(sample_data)
+    print(f"Processed {len(results['successful'])} valid items.")
+    print(f"Rejected {len(results['failed'])} invalid items.")
