@@ -1,53 +1,44 @@
-import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Generator, Iterable, List, Sequence, TypeVar
 
-logger = logging.getLogger(__name__)
-
-
-class ValidationError(Exception):
-    """Custom exception raised when record validation fails."""
-    pass
+T = TypeVar("T")
 
 
-class BatchProcessor:
-    """Processes payload items with pre-execution input validation."""
+def chunk_iterable(iterable: Sequence[T], chunk_size: int) -> Generator[List[T], None, None]:
+    """Split a sequence into smaller chunks of a specified size."""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be greater than zero")
+    for i in range(0, len(iterable), chunk_size):
+        yield list(iterable[i : i + chunk_size])
 
-    def __init__(self, required_fields: List[str]):
-        self.required_fields = required_fields
 
-    def _validate_item(self, item: Any) -> Dict[str, Any]:
-        """Validate type and schema requirements for an individual record."""
-        if not isinstance(item, dict):
-            raise ValidationError(f"Invalid type '{type(item).__name__}', expected dictionary")
+def flatten(nested_iterable: Iterable[Any]) -> List[Any]:
+    """Recursively flatten arbitrarily nested lists or tuples."""
+    flat_list = []
+    for item in nested_iterable:
+        if isinstance(item, (list, tuple)):
+            flat_list.extend(flatten(item))
+        else:
+            flat_list.append(item)
+    return flat_list
 
-        for field in self.required_fields:
-            if field not in item:
-                raise ValidationError(f"Missing required field: '{field}'")
-            if item[field] is None:
-                raise ValidationError(f"Field '{field}' cannot be None")
 
-        return item
+def deep_get(dictionary: dict, key_path: str, default: Any = None, delimiter: str = ".") -> Any:
+    """Safely retrieve nested values from a dictionary using a delimited key path."""
+    current = dictionary
+    for key in key_path.split(delimiter):
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
 
-    def process_batch(self, items: List[Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Main processing loop executing validation before item handling."""
-        processed = []
-        errors = []
 
-        for index, raw_item in enumerate(items):
-            try:
-                # Validate input integrity prior to processing
-                valid_item = self._validate_item(raw_item)
-                
-                # Transform valid data
-                clean_record = {k.strip(): str(v).strip() for k, v in valid_item.items()}
-                processed.append(clean_record)
-                logger.debug(f"Successfully processed batch index {index}")
-
-            except ValidationError as exc:
-                logger.warning(f"Validation error at index {index}: {exc}")
-                errors.append({"index": index, "raw": raw_item, "reason": str(exc)})
-            except Exception as exc:
-                logger.error(f"Unexpected processing failure at index {index}: {exc}")
-                errors.append({"index": index, "raw": raw_item, "reason": "Internal error"})
-
-        return processed, errors
+def process_in_batches(
+    items: Sequence[T], batch_size: int, transform_func: Callable[[List[T]], List[Any]]
+) -> List[Any]:
+    """Apply a transformation function to items in fixed-size batches."""
+    results = []
+    for batch in chunk_iterable(items, batch_size):
+        processed_batch = transform_func(batch)
+        results.extend(processed_batch)
+    return results
