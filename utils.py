@@ -1,38 +1,38 @@
-"""General utility functions for data manipulation and safe casting."""
+import functools
+import time
+import logging
+from typing import Callable, Any, Dict
 
-import re
-from typing import Any, Dict, List, Optional
+# Configure logger for performance monitoring
+logger = logging.getLogger(__name__)
 
+def memoize(func: Callable) -> Callable:
+    """Decorator to cache function results using a dictionary."""
+    cache: Dict[Any, Any] = {}
 
-def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge two dictionaries without altering inputs."""
-    merged = dict1.copy()
-    for key, value in dict2.items():
-        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
-            merged[key] = deep_merge(merged[key], value)
-        else:
-            merged[key] = value
-    return merged
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (args, frozenset(kwargs.items()))
+        if key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+    return wrapper
 
+def performance_timer(func: Callable) -> Callable:
+    """Decorator to measure and log execution time."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = time.perf_counter() - start_time
+        logger.debug(f"Function {func.__name__} took {duration:.4f}s")
+        return result
+    return wrapper
 
-def sanitize_string(text: str, allow_punctuation: bool = False) -> str:
-    """Normalize whitespace and optionally strip special characters."""
-    text = text.strip()
-    if not allow_punctuation:
-        text = re.sub(r"[^\w\s]", "", text)
-    return re.sub(r"\s+", " ", text)
+def batch_process(data: list, chunk_size: int = 100):
+    """Generator to yield chunks for memory efficiency."""
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
 
-
-def safe_cast(value: Any, to_type: type, default: Optional[Any] = None) -> Any:
-    """Attempt casting a value to a target type with fallback default."""
-    try:
-        return to_type(value)
-    except (ValueError, TypeError):
-        return default
-
-
-def chunk_sequence(sequence: List[Any], size: int) -> List[List[Any]]:
-    """Split a list sequence into chunks of specified maximum size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be positive")
-    return [sequence[i : i + size] for i in range(0, len(sequence), size)]
+# Optimization constant for default cache size limits
+DEFAULT_CACHE_LIMIT = 1024
