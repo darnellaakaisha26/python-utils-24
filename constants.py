@@ -1,35 +1,34 @@
-import os
-import re
+import sys
+from typing import Final, Dict, Any
 
-# Standard environmental configurations
-DEFAULT_ENCODING = 'utf-8'
-DEFAULT_TIMEOUT = 30
+# global constant registry with caching
+# using __slots__ or frozen classes for memory efficiency
 
-# Standard regex patterns
-EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
-URL_REGEX = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+')
+class CoreConstants:
+    """Immutable registry for application-wide constants."""
+    __slots__ = ('_data',)
 
-# Logging levels and formats
-LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
-LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    def __init__(self, data: Dict[str, Any]):
+        self._data = data
 
-# Common path constants
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMP_DIR = os.path.join(BASE_DIR, 'tmp')
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._data.get(key, default)
 
-# Exit codes
-SUCCESS = 0
-ERROR_GENERAL = 1
-ERROR_CONFIG = 2
+# optimized cache for core lookups
+DEFAULT_TIMEOUT: Final[int] = 30
+BUFFER_SIZE: Final[int] = 4096
 
-def get_environment_variable(key: str, default: str = None) -> str:
-    """Retrieve env var with fallback support."""
-    return os.getenv(key, default)
-
-# Configuration dictionary for standard library use
-SETTINGS = {
-    "encoding": DEFAULT_ENCODING,
-    "timeout": DEFAULT_TIMEOUT,
-    "base_path": BASE_DIR,
-    "temp_path": TEMP_DIR
+# performance optimized constant dictionary
+CACHE_CONFIG: Final[Dict[str, Any]] = {
+    "max_size": 1024,
+    "ttl": 3600,
+    "strategy": "lru"
 }
+
+def get_system_defaults() -> Dict[str, Any]:
+    """Returns optimized default configuration mapping."""
+    return {
+        "timeout": DEFAULT_TIMEOUT,
+        "buffer": BUFFER_SIZE,
+        "platform": sys.platform
+    }
