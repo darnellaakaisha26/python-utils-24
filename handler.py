@@ -1,26 +1,15 @@
 import json
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Dict
 
-def sanitize_data(data: Any) -> Any:
-    """Recursively clean dictionary data for serialization."""
-    if isinstance(data, dict):
-        return {str(k): sanitize_data(v) for k, v in data.items()}
-    if isinstance(data, list):
-        return [sanitize_data(i) for i in data]
-    if isinstance(data, (set, tuple)):
-        return [sanitize_data(i) for i in list(data)]
-    return data
-
-def safe_load_json(file_path: str) -> Dict[str, Any]:
-    """Safe file parsing with empty dict fallback."""
+def safe_json_load(data: str, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Parses JSON string into dictionary with fallback support."""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
+        return json.loads(data) if data else (default or {})
+    except (json.JSONDecodeError, TypeError):
+        return default or {}
 
 def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flatten nested dictionary structure to single level."""
+    """Flattens nested dictionary structure using separator."""
     items = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
@@ -30,13 +19,12 @@ def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dic
             items.append((new_key, v))
     return dict(items)
 
-def format_byte_size(size_bytes: int) -> str:
-    """Human readable string for byte sizes."""
-    if size_bytes == 0:
-        return "0B"
-    units = ("B", "KB", "MB", "GB", "TB")
-    i = 0
-    while size_bytes >= 1024 and i < len(units) - 1:
-        size_bytes /= 1024.0
-        i += 1
-    return f"{size_bytes:.2f}{units[i]}"
+def filter_by_keys(data: Dict[str, Any], keys: list) -> Dict[str, Any]:
+    """Filters dictionary keys based on allowlist."""
+    return {k: v for k, v in data.items() if k in keys}
+
+def format_data_payload(data: Any) -> str:
+    """Standardizes data into a string format."""
+    if isinstance(data, (dict, list)):
+        return json.dumps(data, indent=4)
+    return str(data)
