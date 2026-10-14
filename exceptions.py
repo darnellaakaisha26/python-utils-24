@@ -1,22 +1,33 @@
-class DataProcessingError(Exception):
-    """Base exception for data handling operations."""
+class UtilsError(Exception):
+    """Base exception for python-utils-24 package."""
     pass
 
-class ValidationError(DataProcessingError):
-    """Raised when data fails schema validation."""
+class ConfigurationError(UtilsError):
+    """Raised when configuration validation fails."""
     pass
 
-class TransformationError(DataProcessingError):
+class ProcessingError(UtilsError):
     """Raised when data transformation fails."""
     pass
 
-class DataHandlerException(DataProcessingError):
-    """Generic exception for handler-specific failures."""
-    def __init__(self, message: str, context: dict = None):
-        super().__init__(message)
-        self.context = context or {}
+def raise_if_none(value, message="Value cannot be None"):
+    """Helper to enforce non-null constraints."""
+    if value is None:
+        raise ValueError(message)
 
-    def __str__(self) -> str:
-        if self.context:
-            return f"{super().__str__()} (context: {self.context})"
-        return super().__str__()
+def handle_exception(e, logger=None):
+    """Standardized exception formatting and logging."""
+    error_msg = f"{type(e).__name__}: {str(e)}"
+    if logger:
+        logger.error(error_msg)
+    return error_msg
+
+class Result:
+    """Container for operation results with error handling."""
+    def __init__(self, data=None, error=None):
+        self.data = data
+        self.error = error
+
+    @property
+    def success(self):
+        return self.error is None
