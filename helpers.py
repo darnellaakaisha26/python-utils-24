@@ -1,41 +1,28 @@
-import os
-import json
+import time
+import functools
 import logging
-from typing import Any, Dict, Optional
+from typing import Callable, Any, Type, Tuple
 
-def load_json_file(file_path: str) -> Dict[Any, Any]:
-    """Reads and parses a JSON file from disk."""
-    if not os.path.exists(file_path):
-        return {}
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+logger = logging.getLogger(__name__)
 
-def save_json_file(file_path: str, data: Dict[Any, Any]) -> bool:
-    """Serializes data to a JSON file."""
-    try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except (IOError, TypeError) as e:
-        logging.error(f"Failed to write json: {e}")
-        return False
-
-def ensure_dir(path: str) -> None:
-    """Creates directory if it does not exist."""
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-def get_env_variable(key: str, default: Optional[str] = None) -> str:
-    """Retrieves environment variable with fallback."""
-    return os.getenv(key, default or "")
-
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flattens a nested dictionary into a single level."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+def with_retry(retries: int = 3, delay: float = 1.0, exceptions: Tuple[Type[Exception], ...] = (Exception,)):
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            current_delay = delay
+            
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= 2
+            
+            logger.error(f"Function {func.__name__} failed after {retries} attempts.")
+            raise last_exception
+        return wrapper
+    return decorator
