@@ -1,33 +1,25 @@
+from typing import Optional, Any
+
 class UtilsError(Exception):
-    """Base exception for python-utils-24 package."""
+    """Base exception class for python-utils-24."""
+    def __init__(self, message: str, context: Optional[Any] = None) -> None:
+        super().__init__(message)
+        self.context = context
+
+class ValidationError(UtilsError):
+    """Raised when validation logic fails."""
     pass
 
 class ConfigurationError(UtilsError):
-    """Raised when configuration validation fails."""
+    """Raised when configuration settings are invalid."""
     pass
 
 class ProcessingError(UtilsError):
-    """Raised when data transformation fails."""
+    """Raised during unexpected processing failures."""
     pass
 
-def raise_if_none(value, message="Value cannot be None"):
-    """Helper to enforce non-null constraints."""
-    if value is None:
-        raise ValueError(message)
+def raise_error(error_type: type[UtilsError], message: str, context: Any = None) -> None:
+    """Helper to raise typed exceptions with optional context."""
+    raise error_type(message, context=context)
 
-def handle_exception(e, logger=None):
-    """Standardized exception formatting and logging."""
-    error_msg = f"{type(e).__name__}: {str(e)}"
-    if logger:
-        logger.error(error_msg)
-    return error_msg
-
-class Result:
-    """Container for operation results with error handling."""
-    def __init__(self, data=None, error=None):
-        self.data = data
-        self.error = error
-
-    @property
-    def success(self):
-        return self.error is None
+__all__ = ['UtilsError', 'ValidationError', 'ConfigurationError', 'ProcessingError', 'raise_error']
