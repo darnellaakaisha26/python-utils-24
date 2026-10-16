@@ -1,41 +1,39 @@
+import functools
 import time
-from functools import wraps
-from typing import Any, Dict, Generator, Iterable, Callable
+import logging
+from typing import Callable, Any
 
-def deep_merge(dict_a: Dict[Any, Any], dict_b: Dict[Any, Any]) -> Dict[Any, Any]:
-    """Recursively merges dict_b into dict_a, returning a new dictionary."""
-    result = dict_a.copy()
-    for key, value in dict_b.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
+# Configure logger for core operations
+logger = logging.getLogger(__name__)
 
-def chunk_iterable(iterable: Iterable[Any], size: int) -> Generator[list, None, None]:
-    """Yields successive chunks of a given size from an iterable."""
-    chunk = []
-    for item in iterable:
-        chunk.append(item)
-        if len(chunk) == size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
+# Cache dictionary to store results for performance
+_cache = {}
 
-def retry(retries: int = 3, delay: float = 1.0) -> Callable:
-    """Decorator to retry a function call on failure with a delay."""
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            for attempt in range(retries):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    last_exception = e
-                    if attempt < retries - 1:
-                        time.sleep(delay)
-            raise last_exception or RuntimeError("Retry failed")
-        return wrapper
-    return decorator
+def memoize(func: Callable) -> Callable:
+    """Performance decorator for caching function return values."""
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _cache:
+            _cache[key] = func(*args, **kwargs)
+        return _cache[key]
+    return wrapper
+
+def batch_process(items: list, chunk_size: int = 100):
+    """Optimized iterator for large dataset processing."""
+    for i in range(0, len(items), chunk_size):
+        yield items[i:i + chunk_size]
+
+class PerformanceTracker:
+    """Context manager for monitoring execution timing."""
+    def __init__(self, name: str):
+        self.name = name
+        self.start_time = 0.0
+
+    def __enter__(self):
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        elapsed = time.perf_counter() - self.start_time
+        logger.info(f"Operation {self.name} completed in {elapsed:.4f}s")
