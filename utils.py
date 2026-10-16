@@ -1,37 +1,36 @@
-import json
-import os
-from typing import Any, Dict, List
+import time
+import functools
+import random
+from typing import Callable, Any, Type
 
-def load_json(filepath: str) -> Dict[str, Any]:
-    """Reads and parses a JSON file."""
-    if not os.path.exists(filepath):
-        return {}
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return json.load(f)
+def retry_on_failure(retries: int = 3, delay: float = 1.0, backoff: float = 2.0, exceptions: tuple = (Exception,)): 
+    """Decorator for retrying functions with exponential backoff."""
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            current_delay = delay
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt == retries - 1:
+                        raise e
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            return None
+        return wrapper
+    return decorator
 
-def save_json(data: Any, filepath: str) -> None:
-    """Serializes data to a JSON file."""
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
-
-def chunk_list(items: List[Any], size: int) -> List[List[Any]]:
-    """Splits a list into smaller chunks."""
-    return [items[i:i + size] for i in range(0, len(items), size)]
-
-def slugify(text: str) -> str:
-    """Converts strings to simple URL-safe slugs."""
-    return "-".join(text.lower().split()).replace(" ", "-")
-
-def get_env_var(key: str, default: str = "") -> str:
-    """Fetches environment variable with fallback."""
-    return os.getenv(key, default)
-
-def safe_get(data: Dict, path: List[str], default: Any = None) -> Any:
-    """Accesses deeply nested dictionary values."""
-    current = data
-    for key in path:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
+def execute_with_retry(func: Callable, *args, **kwargs) -> Any:
+    """Utility for executing callables with retry logic."""
+    retries = kwargs.pop('retries', 3)
+    delay = kwargs.pop('delay', 1.0)
+    
+    for i in range(retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            if i == retries - 1:
+                raise
+            time.sleep(delay * (2 ** i))
+    return None
