@@ -1,38 +1,35 @@
 import logging
-from typing import Any, Optional
 
+# Configure logger for module tracking
 logger = logging.getLogger(__name__)
 
-class ProcessingError(Exception):
-    """Custom exception for data processing failures."""
-    pass
+def validate_input(data: dict) -> bool:
+    """Ensures required fields exist and are of correct type."""
+    required_fields = {"id": int, "payload": str}
+    for field, field_type in required_fields.items():
+        if field not in data or not isinstance(data[field], field_type):
+            return False
+    return True
 
-def process_data(data: Any) -> Optional[dict]:
-    """Safely processes input data with robust error handling."""
-    if data is None:
-        logger.warning("Received null data for processing")
-        return None
-
-    try:
-        if not isinstance(data, dict):
-            raise ValueError(f"Expected dict, got {type(data).__name__}")
+def process_stream(data_stream: list):
+    """Main loop for processing validated input items."""
+    for item in data_stream:
+        try:
+            if not validate_input(item):
+                logger.warning(f"Skipping malformed record: {item}")
+                continue
             
-        # Simulation of core logic requiring key validation
-        required_keys = {'id', 'payload'}
-        if not required_keys.issubset(data.keys()):
-            missing = required_keys - data.keys()
-            raise KeyError(f"Missing keys: {missing}")
+            # Simulate core business logic execution
+            result = f"Processed {item['id']}"
+            print(result)
             
-        return {
-            "status": "success",
-            "processed_id": data['id'],
-            "result": str(data['payload']).strip()
-        }
+        except Exception as e:
+            logger.error(f"Unexpected processing error: {e}")
 
-    except (ValueError, KeyError) as e:
-        logger.error(f"Validation failed: {e}")
-        return {"status": "error", "message": str(e)}
-        
-    except Exception as e:
-        logger.critical(f"Unexpected processing failure: {e}", exc_info=True)
-        raise ProcessingError("System encountered a critical failure") from e
+if __name__ == "__main__":
+    raw_data = [
+        {"id": 1, "payload": "data_a"},
+        {"id": "invalid", "payload": "data_b"},
+        {"id": 2, "payload": "data_c"}
+    ]
+    process_stream(raw_data)
