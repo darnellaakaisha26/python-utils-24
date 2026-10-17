@@ -1,31 +1,31 @@
-import json
-import os
-from typing import Any, Dict
+import time
+import functools
+import logging
 
-def load_config(path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """Loads JSON configuration with provided fallback defaults."""
-    config = defaults.copy()
+logger = logging.getLogger(__name__)
 
-    if not os.path.exists(path):
-        return config
+def retry(exceptions, retries=3, delay=1.0, backoff=2):
+    """Decorator for retrying functions with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt == retries - 1:
+                        logger.error(f"Final attempt failed: {e}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempt + 1} failed, retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+        return wrapper
+    return decorator
 
-    try:
-        with open(path, 'r') as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                config.update(data)
-    except (json.JSONDecodeError, IOError):
-        pass
-
-    return config
-
-def save_config(path: str, config: Dict[str, Any]) -> None:
-    """Persists configuration dictionary to a JSON file."""
-    with open(path, 'w') as f:
-        json.dump(config, f, indent=4)
-
-if __name__ == "__main__":
-    # Example usage for python-utils-24
-    default_settings = {"host": "localhost", "port": 8080}
-    app_config = load_config("config.json", default_settings)
-    print(f"Loaded configuration: {app_config}")
+def network_request_wrapper(func):
+    """Helper to standardize network calls with automatic retries."""
+    # Common network exceptions to catch
+    import socket
+    return retry((socket.timeout, ConnectionError, OSError), retries=3, delay=2.0)(func)
