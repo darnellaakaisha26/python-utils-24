@@ -1,28 +1,31 @@
-import time
-import functools
-import logging
-from typing import Callable, Any, Type, Tuple
+import json
+import os
+from typing import Any, Dict
 
-logger = logging.getLogger(__name__)
+def load_config(path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """Loads JSON configuration with provided fallback defaults."""
+    config = defaults.copy()
 
-def with_retry(retries: int = 3, delay: float = 1.0, exceptions: Tuple[Type[Exception], ...] = (Exception,)):
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            current_delay = delay
-            
-            for attempt in range(retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= 2
-            
-            logger.error(f"Function {func.__name__} failed after {retries} attempts.")
-            raise last_exception
-        return wrapper
-    return decorator
+    if not os.path.exists(path):
+        return config
+
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                config.update(data)
+    except (json.JSONDecodeError, IOError):
+        pass
+
+    return config
+
+def save_config(path: str, config: Dict[str, Any]) -> None:
+    """Persists configuration dictionary to a JSON file."""
+    with open(path, 'w') as f:
+        json.dump(config, f, indent=4)
+
+if __name__ == "__main__":
+    # Example usage for python-utils-24
+    default_settings = {"host": "localhost", "port": 8080}
+    app_config = load_config("config.json", default_settings)
+    print(f"Loaded configuration: {app_config}")
