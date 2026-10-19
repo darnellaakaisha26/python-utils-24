@@ -1,36 +1,28 @@
 import time
 import functools
-import random
+import logging
 from typing import Callable, Any, Type
 
-def retry_on_failure(retries: int = 3, delay: float = 1.0, backoff: float = 2.0, exceptions: tuple = (Exception,)): 
-    """Decorator for retrying functions with exponential backoff."""
-    def decorator(func: Callable) -> Callable:
+logger = logging.getLogger(__name__)
+
+def retry_network_op(exceptions: tuple[Type[Exception], ...], max_retries: int = 3, delay: float = 1.0):
+    """Decorator for retrying network-bound functions with exponential backoff."""
+    def decorator(func: Callable):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
             current_delay = delay
-            for attempt in range(retries):
+            
+            for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
-                    if attempt == retries - 1:
-                        raise e
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
                     time.sleep(current_delay)
-                    current_delay *= backoff
-            return None
+                    current_delay *= 2
+            
+            logger.error(f"Function {func.__name__} failed after {max_retries} attempts.")
+            raise last_exception
         return wrapper
     return decorator
-
-def execute_with_retry(func: Callable, *args, **kwargs) -> Any:
-    """Utility for executing callables with retry logic."""
-    retries = kwargs.pop('retries', 3)
-    delay = kwargs.pop('delay', 1.0)
-    
-    for i in range(retries):
-        try:
-            return func(*args, **kwargs)
-        except Exception:
-            if i == retries - 1:
-                raise
-            time.sleep(delay * (2 ** i))
-    return None
