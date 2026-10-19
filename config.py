@@ -3,28 +3,25 @@ import os
 from typing import Any, Dict
 
 class ConfigLoader:
-    """Handles loading and merging of configuration files."""
+    """Utility for loading JSON configurations with fallback defaults."""
 
-    def __init__(self, defaults: Dict[str, Any] = None):
-        self._defaults = defaults or {}
+    def __init__(self, default_config: Dict[str, Any]):
+        self.defaults = default_config
 
-    def load(self, filepath: str) -> Dict[str, Any]:
-        """Loads json config and merges with defaults."""
-        config = self._defaults.copy()
-        
-        if not os.path.exists(filepath):
-            return config
+    def load(self, path: str) -> Dict[str, Any]:
+        """Loads configuration from a file or returns defaults."""
+        if not os.path.exists(path):
+            return self.defaults
 
         try:
-            with open(filepath, 'r') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 user_config = json.load(f)
-                config.update(user_config)
+                return {**self.defaults, **user_config}
         except (json.JSONDecodeError, IOError):
-            pass
-            
-        return config
+            return self.defaults
 
-def get_config(filepath: str, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
-    """Utility function to simplify config retrieval."""
-    loader = ConfigLoader(defaults)
-    return loader.load(filepath)
+    @staticmethod
+    def save(path: str, config: Dict[str, Any]) -> None:
+        """Persists configuration dictionary to a JSON file."""
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=4)
