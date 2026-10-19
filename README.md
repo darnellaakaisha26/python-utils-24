@@ -1,51 +1,49 @@
 # python-utils-24
 
-A curated collection of production-ready Python helper functions designed to streamline daily development tasks. This library focuses on minimizing boilerplate code for data manipulation, file system operations, and performance monitoring.
+A comprehensive collection of production-ready Python utility functions designed to streamline daily development tasks. This library focuses on performance, type-safety, and reducing boilerplate code in data processing and system operations.
 
 ## Features
 
-*   **File Streamliner:** Simplified context managers for robust JSON/CSV serialization and directory traversal.
-*   **Performance Decorators:** Easy-to-use decorators for benchmarking function execution time and memory usage.
-*   **Type-Safe Validators:** Utility functions for validating common data formats, including email addresses, URLs, and complex nested dictionaries.
-*   **Logger Factory:** Pre-configured logging templates with rotating file support and colored terminal output.
+*   **Robust File Operations:** Simplified wrappers for recursive directory traversal and high-speed JSON/YAML configuration parsing.
+*   **Performance Decorators:** Built-in tools for function execution timing, thread-safe memoization, and automatic retry logic with exponential backoff.
+*   **Data Validation:** Lightweight schema validation helpers for dictionaries and complex object structures.
+*   **String Manipulation:** Advanced sanitization and pattern matching utilities for log parsing and input normalization.
 
 ## Installation
 
-Install the package via pip:
+Install the latest version directly from PyPI:
 
 ```bash
 pip install python-utils-24
 ```
 
-Or add it to your `requirements.txt`:
+Alternatively, install from source:
 
-```text
-python-utils-24>=1.0.0
+```bash
+git clone https://github.com/Developer/python-utils-24.git
+cd python-utils-24
+pip install .
 ```
 
-## Basic Usage
+## Usage
 
-Quickly profile your functions and manage configuration files with minimal setup:
+Leverage the decorator-based utility suite to improve code maintainability and execution tracking:
 
 ```python
 from pyutils24.decorators import time_execution
 from pyutils24.io import load_json
 
-# Benchmark function performance
 @time_execution
-def process_data(data):
-    return [d * 2 for d in data]
+def process_data(file_path):
+    data = load_json(file_path)
+    # Perform complex logic
+    return data
 
-# Load and validate configuration
-config = load_json("settings.json")
-
-# Run utility
-result = process_data([1, 2, 3])
-print(f"Result: {result}")
+result = process_data("config.json")
 ```
 
 ## License
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Distributed under the MIT License. See `LICENSE` for more information.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
