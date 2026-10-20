@@ -1,34 +1,30 @@
-import sys
-from typing import Final, Dict, Any
+import os
+from typing import Final
 
-# global constant registry with caching
-# using __slots__ or frozen classes for memory efficiency
+# Application path constants
+BASE_DIR: Final[str] = os.path.dirname(os.path.abspath(__file__))
+LOG_DIR: Final[str] = os.path.join(BASE_DIR, 'logs')
 
-class CoreConstants:
-    """Immutable registry for application-wide constants."""
-    __slots__ = ('_data',)
-
-    def __init__(self, data: Dict[str, Any]):
-        self._data = data
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return self._data.get(key, default)
-
-# optimized cache for core lookups
+# Execution defaults
 DEFAULT_TIMEOUT: Final[int] = 30
-BUFFER_SIZE: Final[int] = 4096
+MAX_RETRIES: Final[int] = 3
 
-# performance optimized constant dictionary
-CACHE_CONFIG: Final[Dict[str, Any]] = {
-    "max_size": 1024,
-    "ttl": 3600,
-    "strategy": "lru"
-}
+# System configuration keys
+ENV_PREFIX: Final[str] = 'PYUTILS'
+REQUIRED_ENV_VARS: Final[list[str]] = ['API_KEY', 'DB_URL']
 
-def get_system_defaults() -> Dict[str, Any]:
-    """Returns optimized default configuration mapping."""
-    return {
-        "timeout": DEFAULT_TIMEOUT,
-        "buffer": BUFFER_SIZE,
-        "platform": sys.platform
-    }
+# Content-type mapping for file processing
+SUPPORTED_EXTENSIONS: Final[set[str]] = {'.json', '.csv', '.yaml', '.txt'}
+
+# Formatting defaults
+DATE_FORMAT: Final[str] = '%Y-%m-%d %H:%M:%S'
+ENCODING: Final[str] = 'utf-8'
+
+def get_abs_path(filename: str) -> str:
+    """Return full system path for a local file."""
+    return os.path.join(BASE_DIR, filename)
+
+# Status codes for internal handlers
+STATUS_SUCCESS: Final[int] = 200
+STATUS_ERROR: Final[int] = 500
+STATUS_NOT_FOUND: Final[int] = 404
