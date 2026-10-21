@@ -1,37 +1,32 @@
-import logging
-from typing import Any, Dict, Optional
-
-# Configure logging for module tracking
-logger = logging.getLogger(__name__)
+from typing import Any, Callable, Dict, Optional
 
 class DataHandler:
-    """Base handler for processing generic data payloads."""
+    """Handles data transformation and processing tasks."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        self.config = config or {}
-        self.results: list = []
+    def __init__(self, prefix: str = "data") -> None:
+        self.prefix: str = prefix
+        self.registry: Dict[str, Callable[[Any], Any]] = {}
 
-    def validate_payload(self, data: Any) -> bool:
-        """Check if payload meets minimum requirements."""
-        if not data:
-            logger.warning("Empty payload received")
-            return False
-        return True
+    def register_processor(self, name: str, func: Callable[[Any], Any]) -> None:
+        """Registers a transformation function for a specific name."""
+        self.registry[name] = func
 
-    def process(self, data: Any) -> Dict[str, Any]:
-        """Primary execution method for data transformation."""
-        if not self.validate_payload(data):
-            return {"status": "error", "message": "invalid input"}
+    def process(self, name: str, value: Any) -> Optional[Any]:
+        """Executes the registered processor for the given value."""
+        processor = self.registry.get(name)
+        if not processor:
+            return None
+        return processor(value)
 
-        try:
-            processed = {"data": data, "processed": True}
-            self.results.append(processed)
-            return {"status": "success", "result": processed}
-        except Exception as e:
-            logger.error(f"Processing failed: {str(e)}")
-            return {"status": "error", "message": str(e)}
+    def format_key(self, key: str) -> str:
+        """Returns the key string prefixed by instance settings."""
+        return f"{self.prefix}_{key}"
 
-    def clear_cache(self) -> None:
-        """Reset internal state storage."""
-        self.results = []
-        logger.info("Handler cache cleared")
+    def batch_process(self, items: Dict[str, Any]) -> Dict[str, Any]:
+        """Processes a collection of items through registered handlers."""
+        results: Dict[str, Any] = {}
+        for key, value in items.items():
+            processed_val = self.process(key, value)
+            if processed_val is not None:
+                results[key] = processed_val
+        return results
