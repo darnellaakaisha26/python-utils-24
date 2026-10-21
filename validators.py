@@ -1,50 +1,74 @@
-"""Data validation utility functions for general python projects."""
+"""Validation utility functions for common data types and structures."""
 
 import re
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Optional, Sequence, Tuple
 
-EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+
+EMAIL_REGEX = re.compile(r"^[\w\.-]+@[\w\.-]+\.\w+$")
+URL_REGEX = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
 
 
 def is_valid_email(email: str) -> bool:
-    """Check whether a given string is a valid email address format.
+    """Check if a given string is a valid email address format.
 
     Args:
-        email: The string to validate as an email.
+        email: The string to validate as an email address.
 
     Returns:
-        True if the string matches email format, False otherwise.
+        True if valid email format, False otherwise.
     """
-    if not isinstance(email, str) or not email:
+    if not isinstance(email, str):
         return False
     return bool(EMAIL_REGEX.match(email.strip()))
 
 
-def is_in_range(val: float, min_val: float, max_val: float, inclusive: bool = True) -> bool:
-    """Validate if a numeric value falls within a specified range.
+def is_valid_url(url: str) -> bool:
+    """Validate whether a string is a properly formatted HTTP/HTTPS URL.
 
     Args:
-        val: The value to check.
-        min_val: Minimum bound.
-        max_val: Maximum bound.
-        inclusive: If True, include bounds in comparison.
+        url: The string to validate as a URL.
 
     Returns:
-        True if within range, False otherwise.
+        True if valid URL format, False otherwise.
     """
-    if inclusive:
-        return min_val <= val <= max_val
-    return min_val < val < max_val
+    if not isinstance(url, str):
+        return False
+    return bool(URL_REGEX.match(url.strip()))
 
 
-def validate_required_keys(data: Mapping[str, Any], required_keys: Sequence[str]) -> list[str]:
-    """Find missing required keys in a dictionary-like structure.
+def validate_range(
+    val: float,
+    min_val: Optional[float] = None,
+    max_val: Optional[float] = None
+) -> bool:
+    """Determine if a numeric value falls within a specified range.
 
     Args:
-        data: The input mapping/dictionary to inspect.
-        required_keys: A sequence of key names that must be present.
+        val: Numeric value to test.
+        min_val: Lower limit (inclusive), if provided.
+        max_val: Upper limit (inclusive), if provided.
 
     Returns:
-        A list of missing key names.
+        True if value meets range criteria, False otherwise.
     """
-    return [key for key in required_keys if key not in data]
+    if min_val is not None and val < min_val:
+        return False
+    if max_val is not None and val > max_val:
+        return False
+    return True
+
+
+def validate_schema(data: Mapping[str, Any], required_keys: Sequence[str]) -> Tuple[bool, Optional[str]]:
+    """Verify that a dictionary contains all required keys.
+
+    Args:
+        data: The dictionary mapping to inspect.
+        required_keys: A sequence of required key names.
+
+    Returns:
+        Tuple of (is_valid, missing_key_name_or_none).
+    """
+    for key in required_keys:
+        if key not in data:
+            return False, key
+    return True, None
