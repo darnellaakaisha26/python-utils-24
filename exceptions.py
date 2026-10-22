@@ -1,32 +1,27 @@
-class BaseUtilError(Exception):
-    """Base exception for the python-utils-24 package."""
+from typing import Optional, Any
+
+class BaseUtilsError(Exception):
+    """Base exception class for python-utils-24 package."""
+    def __init__(self, message: str, code: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.code = code
+
+class ConfigurationError(BaseUtilsError):
+    """Raised when configuration settings are invalid or missing."""
     pass
 
-class ConfigurationError(BaseUtilError):
-    """Raised when config validation fails."""
-    pass
+class ValidationError(BaseUtilsError):
+    """Raised when input data fails validation requirements."""
+    def __init__(self, message: str, field: Optional[str] = None) -> None:
+        super().__init__(message)
+        self.field = field
 
-class ValidationError(BaseUtilError):
-    """Raised when input validation fails."""
-    pass
+class ProcessingError(BaseUtilsError):
+    """Raised during internal processing logic failures."""
+    def __init__(self, message: str, context: Optional[Any] = None) -> None:
+        super().__init__(message)
+        self.context = context
 
-class ProcessingError(BaseUtilError):
-    """Raised during data transformation failures."""
-    pass
-
-def raise_if_none(value, message="Value cannot be None"):
-    """Helper to enforce non-null requirements."""
-    if value is None:
-        raise ValidationError(message)
-    return value
-
-def wrap_exception(func):
-    """Decorator to catch errors and re-raise as BaseUtilError."""
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            if isinstance(e, BaseUtilError):
-                raise
-            raise BaseUtilError(f"Operation failed: {str(e)}") from e
-    return wrapper
+def raise_error(error_type: type[BaseUtilsError], message: str, **kwargs: Any) -> None:
+    """Helper function to instantiate and raise custom package exceptions."""
+    raise error_type(message, **kwargs)
