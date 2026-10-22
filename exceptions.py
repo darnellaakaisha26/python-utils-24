@@ -1,25 +1,32 @@
-from typing import Optional, Any
-
-class UtilsError(Exception):
-    """Base exception class for python-utils-24."""
-    def __init__(self, message: str, context: Optional[Any] = None) -> None:
-        super().__init__(message)
-        self.context = context
-
-class ValidationError(UtilsError):
-    """Raised when validation logic fails."""
+class BaseUtilError(Exception):
+    """Base exception for the python-utils-24 package."""
     pass
 
-class ConfigurationError(UtilsError):
-    """Raised when configuration settings are invalid."""
+class ConfigurationError(BaseUtilError):
+    """Raised when config validation fails."""
     pass
 
-class ProcessingError(UtilsError):
-    """Raised during unexpected processing failures."""
+class ValidationError(BaseUtilError):
+    """Raised when input validation fails."""
     pass
 
-def raise_error(error_type: type[UtilsError], message: str, context: Any = None) -> None:
-    """Helper to raise typed exceptions with optional context."""
-    raise error_type(message, context=context)
+class ProcessingError(BaseUtilError):
+    """Raised during data transformation failures."""
+    pass
 
-__all__ = ['UtilsError', 'ValidationError', 'ConfigurationError', 'ProcessingError', 'raise_error']
+def raise_if_none(value, message="Value cannot be None"):
+    """Helper to enforce non-null requirements."""
+    if value is None:
+        raise ValidationError(message)
+    return value
+
+def wrap_exception(func):
+    """Decorator to catch errors and re-raise as BaseUtilError."""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            if isinstance(e, BaseUtilError):
+                raise
+            raise BaseUtilError(f"Operation failed: {str(e)}") from e
+    return wrapper
