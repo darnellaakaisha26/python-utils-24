@@ -1,34 +1,37 @@
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
+import sys
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = "app.log", max_bytes: int = 5*1024*1024, backup_count: int = 3) -> logging.Logger:
-    """Configures a rotating file logger for the application."""
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+class CustomLogger:
+    """Utility class for application logging with safety checks."""
+    def __init__(self, name: str, level: int = logging.INFO):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        
+        if not self.logger.handlers:
+            handler = logging.StreamHandler(sys.stderr)
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
 
-    # Ensure directory exists
-    log_path = Path(log_file)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+    def safe_log(self, level: int, message: Optional[str]) -> None:
+        """Logs a message while handling potential null inputs."""
+        try:
+            if message is None:
+                self.logger.warning("Attempted to log a null message")
+                return
+            
+            if not isinstance(message, str):
+                message = str(message)
+                
+            self.logger.log(level, message)
+        except Exception as e:
+            # Fallback to standard error to prevent log-induced crashes
+            print(f"Critical logging failure: {e}", file=sys.stderr)
 
-    # Formatter for consistent logs
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    # Rotating file handler
-    file_handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=max_bytes, 
-        backupCount=backup_count
-    )
-    file_handler.setFormatter(formatter)
-
-    # Console output
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-    return logger
+    def log_error(self, message: str, exc_info: bool = True) -> None:
+        """Specialized error logging wrapper."""
+        try:
+            self.logger.error(message, exc_info=exc_info)
+        except Exception:
+            self.safe_log(logging.ERROR, message)
