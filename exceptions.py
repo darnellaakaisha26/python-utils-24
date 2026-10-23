@@ -1,27 +1,29 @@
-from typing import Optional, Any
+class UtilityError(Exception):
+    """Base exception for python-utils-24 operations."""
 
-class BaseUtilsError(Exception):
-    """Base exception class for python-utils-24 package."""
-    def __init__(self, message: str, code: Optional[int] = None) -> None:
-        super().__init__(message)
-        self.code = code
+class ConfigurationError(UtilityError):
+    """Raised when configuration constraints are violated."""
 
-class ConfigurationError(BaseUtilsError):
-    """Raised when configuration settings are invalid or missing."""
-    pass
+class ProcessingError(UtilityError):
+    """Raised when data processing fails."""
 
-class ValidationError(BaseUtilsError):
-    """Raised when input data fails validation requirements."""
-    def __init__(self, message: str, field: Optional[str] = None) -> None:
-        super().__init__(message)
-        self.field = field
+def handle_exceptions(func):
+    """Decorator to wrap functions with standard error handling."""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except (ValueError, TypeError) as e:
+            raise ProcessingError(f"Processing failed: {str(e)}") from e
+        except Exception as e:
+            # Log unexpected errors before re-raising
+            print(f"Critical failure in {func.__name__}: {e}")
+            raise UtilityError("An unexpected utility error occurred") from e
+    return wrapper
 
-class ProcessingError(BaseUtilsError):
-    """Raised during internal processing logic failures."""
-    def __init__(self, message: str, context: Optional[Any] = None) -> None:
-        super().__init__(message)
-        self.context = context
-
-def raise_error(error_type: type[BaseUtilsError], message: str, **kwargs: Any) -> None:
-    """Helper function to instantiate and raise custom package exceptions."""
-    raise error_type(message, **kwargs)
+def validate_input(value, expected_type):
+    """Utility for enforcing type safety on edge inputs."""
+    if value is None:
+        raise ConfigurationError("Input value cannot be None")
+    if not isinstance(value, expected_type):
+        raise ProcessingError(f"Expected {expected_type}, got {type(value)}")
+    return True
