@@ -1,35 +1,26 @@
-import logging
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Dict, List, Union
 
-logger = logging.getLogger(__name__)
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flatten a nested dictionary with a custom separator."""
+    items = []
+    for k, v in data.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-T = TypeVar('T')
+def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
+    """Split a list into smaller chunks of a specified size."""
+    if size <= 0:
+        raise ValueError("Chunk size must be a positive integer")
+    return [data[i:i + size] for i in range(0, len(data), size)]
 
-def safe_execute(func: Callable[[], T], default: Any = None, error_msg: str = 'operation failed') -> Optional[T]:
-    """Executes a callable safely, returning default on exception."""
-    try:
-        return func()
-    except (ValueError, TypeError, AttributeError, KeyError) as e:
-        logger.error(f"{error_msg}: {str(e)}")
-        return default
-    except Exception as e:
-        logger.critical(f"unexpected system error: {str(e)}")
-        raise
-
-def validate_input(data: Any, expected_type: type) -> bool:
-    """Checks input type and integrity for edge cases."""
-    if data is None:
-        return False
-    if not isinstance(data, expected_type):
-        return False
-    # Additional validation for empty collections
-    if isinstance(data, (list, dict, str)) and not data:
-        return False
-    return True
-
-def robust_conversion(value: Any, target_type: type) -> Any:
-    """Safely converts types with fallback mechanisms."""
-    try:
-        return target_type(value)
-    except (ValueError, TypeError):
-        return None
+def clean_data(data: Any) -> Any:
+    """Remove None values recursively from nested structures."""
+    if isinstance(data, dict):
+        return {k: clean_data(v) for k, v in data.items() if v is not None}
+    elif isinstance(data, list):
+        return [clean_data(v) for v in data if v is not None]
+    return data
