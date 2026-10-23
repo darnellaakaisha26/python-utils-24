@@ -1,32 +1,32 @@
-from typing import Any, Callable, Dict, Optional
+import time
+import functools
+import logging
 
-class DataHandler:
-    """Handles data transformation and processing tasks."""
+logger = logging.getLogger(__name__)
 
-    def __init__(self, prefix: str = "data") -> None:
-        self.prefix: str = prefix
-        self.registry: Dict[str, Callable[[Any], Any]] = {}
-
-    def register_processor(self, name: str, func: Callable[[Any], Any]) -> None:
-        """Registers a transformation function for a specific name."""
-        self.registry[name] = func
-
-    def process(self, name: str, value: Any) -> Optional[Any]:
-        """Executes the registered processor for the given value."""
-        processor = self.registry.get(name)
-        if not processor:
+def retry_network_op(retries=3, delay=1, backoff=2):
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    if attempt == retries - 1:
+                        logger.error(f"Final attempt failed for {func.__name__}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
             return None
-        return processor(value)
+        return wrapper
+    return decorator
 
-    def format_key(self, key: str) -> str:
-        """Returns the key string prefixed by instance settings."""
-        return f"{self.prefix}_{key}"
-
-    def batch_process(self, items: Dict[str, Any]) -> Dict[str, Any]:
-        """Processes a collection of items through registered handlers."""
-        results: Dict[str, Any] = {}
-        for key, value in items.items():
-            processed_val = self.process(key, value)
-            if processed_val is not None:
-                results[key] = processed_val
-        return results
+@retry_network_op(retries=3, delay=2)
+def fetch_data(url):
+    """Example network operation function."""
+    # Implementation logic for network requests would go here
+    pass
