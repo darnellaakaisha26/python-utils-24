@@ -1,30 +1,35 @@
 import time
 import functools
 import logging
+from typing import Callable, Any
 
 logger = logging.getLogger(__name__)
 
-def retry(max_attempts=3, delay=1, exceptions=(Exception,)): 
-    """Decorator for retrying network operations."""
-    def decorator(func):
+def retry(retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """Decorator for retrying functions on exception."""
+    def decorator(func: Callable):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
+        def wrapper(*args, **kwargs) -> Any:
+            current_delay = delay
+            for attempt in range(retries):
                 try:
                     return func(*args, **kwargs)
-                except exceptions as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        logger.error(f"Failed after {max_attempts} attempts: {e}")
+                except Exception as e:
+                    if attempt == retries - 1:
+                        logger.error(f"Final attempt failed for {func.__name__}")
                         raise
-                    time.sleep(delay)
-            return None
+                    
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
         return wrapper
     return decorator
 
-@retry(max_attempts=3, delay=2)
-def fetch_data(url):
-    """Example of a network call with retry logic."""
-    # Placeholder for requests logic
-    raise ConnectionError(f"Failed to connect to {url}")
+@retry(retries=3, delay=2.0)
+def fetch_network_data(url: str):
+    """Simulated network request with retry logic."""
+    # Example implementation: 
+    # response = requests.get(url)
+    # response.raise_for_status()
+    # return response.json()
+    pass
