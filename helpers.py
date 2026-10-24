@@ -1,26 +1,36 @@
-from typing import Any, Dict, List, Union
+import time
+import functools
+import logging
+from typing import Callable, Any, Type, Tuple
 
-def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flatten a nested dictionary with a custom separator."""
-    items = []
-    for k, v in data.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+logger = logging.getLogger(__name__)
 
-def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
-    """Split a list into smaller chunks of a specified size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be a positive integer")
-    return [data[i:i + size] for i in range(0, len(data), size)]
+def with_retry(retries: int = 3, delay: float = 1.0, exceptions: Tuple[Type[Exception], ...] = (Exception,)):
+    """
+    Decorator for retrying network operations on failure.
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+            
+            logger.error(f"Function {func.__name__} failed after {retries} attempts.")
+            raise last_exception
+        return wrapper
+    return decorator
 
-def clean_data(data: Any) -> Any:
-    """Remove None values recursively from nested structures."""
-    if isinstance(data, dict):
-        return {k: clean_data(v) for k, v in data.items() if v is not None}
-    elif isinstance(data, list):
-        return [clean_data(v) for v in data if v is not None]
-    return data
+@with_retry(retries=3, delay=2.0)
+def fetch_data(url: str):
+    """
+    Example network operation wrapper.
+    """
+    import urllib.request
+    with urllib.request.urlopen(url) as response:
+        return response.read().decode('utf-8')
