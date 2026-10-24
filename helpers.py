@@ -1,36 +1,35 @@
-import time
-import functools
-import logging
-from typing import Callable, Any, Type, Tuple
+import os
+import shutil
+from typing import List, Optional
 
-logger = logging.getLogger(__name__)
+def clean_directory(path: str, extensions: Optional[List[str]] = None) -> int:
+    """Removes files with specified extensions from a directory."""
+    count = 0
+    if not os.path.exists(path):
+        return count
 
-def with_retry(retries: int = 3, delay: float = 1.0, exceptions: Tuple[Type[Exception], ...] = (Exception,)):
-    """
-    Decorator for retrying network operations on failure.
-    """
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            last_exception = None
-            for attempt in range(retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
-            
-            logger.error(f"Function {func.__name__} failed after {retries} attempts.")
-            raise last_exception
-        return wrapper
-    return decorator
+    for filename in os.listdir(path):
+        file_path = os.path.join(path, filename)
+        if os.path.isfile(file_path):
+            if extensions is None or filename.endswith(tuple(extensions)):
+                os.remove(file_path)
+                count += 1
+    return count
 
-@with_retry(retries=3, delay=2.0)
-def fetch_data(url: str):
-    """
-    Example network operation wrapper.
-    """
-    import urllib.request
-    with urllib.request.urlopen(url) as response:
-        return response.read().decode('utf-8')
+def safe_move(src: str, dst: str) -> bool:
+    """Moves file ensuring destination directory exists."""
+    try:
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.move(src, dst)
+        return True
+    except (IOError, OSError):
+        return False
+
+def get_file_stats(path: str) -> dict:
+    """Returns basic metadata for a given file path."""
+    stat = os.stat(path)
+    return {
+        "size": stat.st_size,
+        "created": stat.st_ctime,
+        "modified": stat.st_mtime
+    }
