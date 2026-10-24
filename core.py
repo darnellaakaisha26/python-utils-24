@@ -1,44 +1,32 @@
-import logging
-from typing import Any, Dict, Optional
+import functools
+import time
+from typing import Callable, Any
 
-# Configure global logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('python-utils-24')
+# internal cache for high-frequency utility lookups
+_PERFORMANCE_CACHE = {}
 
-class DataProcessor:
-    """Standard processor for data transformation tasks."""
+def memoize_core(func: Callable) -> Callable:
+    """decorator for caching expensive core processing results"""
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _PERFORMANCE_CACHE:
+            _PERFORMANCE_CACHE[key] = func(*args, **kwargs)
+        return _PERFORMANCE_CACHE[key]
+    return wrapper
 
-    def __init__(self, settings: Optional[Dict[str, Any]] = None):
-        self.settings = settings or {}
-        self.is_active = True
+@memoize_core
+def batch_process_data(data_size: int) -> list:
+    """simulated heavy processing task with cached output"""
+    time.sleep(0.5)
+    return [i * 2 for i in range(data_size)]
 
-    def process_payload(self, data: Any) -> Any:
-        """Sanitize and validate input payload."""
-        if not self.is_active:
-            logger.warning("Processor inactive, skipping payload")
-            return None
+class CoreProcessor:
+    def __init__(self, buffer_size: int = 1024):
+        self.buffer = [None] * buffer_size
+        self.pointer = 0
 
-        try:
-            return self._transform(data)
-        except Exception as e:
-            logger.error(f"Transformation failure: {e}")
-            return None
-
-    def _transform(self, data: Any) -> Any:
-        """Internal transformation logic."""
-        if isinstance(data, dict):
-            return {k: str(v).strip() for k, v in data.items()}
-        return str(data).strip()
-
-    def toggle_status(self, state: bool) -> None:
-        """Update operational status of processor."""
-        self.is_active = state
-        logger.info(f"Status updated to: {state}")
-
-def get_default_config() -> Dict[str, Any]:
-    """Return base configuration dictionary."""
-    return {
-        "version": "24.0.1",
-        "mode": "production",
-        "retries": 3
-    }
+    def update_buffer(self, item: Any) -> None:
+        """optimized circular buffer write operation"""
+        self.buffer[self.pointer] = item
+        self.pointer = (self.pointer + 1) % len(self.buffer)
