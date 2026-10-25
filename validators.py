@@ -1,26 +1,26 @@
 import re
 from typing import Any, Optional
 
-def validate_input(data: Any) -> bool:
-    """Checks if input data meets the required structure."""
-    if not isinstance(data, dict):
-        return False
-    
-    # Ensure required keys exist and types are correct
-    if 'id' not in data or not isinstance(data['id'], int):
-        return False
-        
-    # Regex validation for alphanumeric labels
-    label = data.get('label', '')
-    if not isinstance(label, str) or not re.match(r'^[a-zA-Z0-9_]{3,20}$', label):
-        return False
-        
-    return True
+def is_valid_email(email: str) -> bool:
+    """Validate email string format using regex."""
+    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    return bool(re.match(pattern, email))
 
-def sanitize_input(value: Any) -> str:
-    """Strips whitespace and enforces string format."""
-    return str(value).strip()
+def is_non_empty_string(value: Any) -> bool:
+    """Check if input is a non-empty string."""
+    return isinstance(value, str) and len(value.strip()) > 0
 
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
-    pass
+def validate_range(value: int, min_val: int, max_val: int) -> bool:
+    """Ensure integer is within inclusive boundaries."""
+    return isinstance(value, int) and min_val <= value <= max_val
+
+def get_safe_int(value: Any, default: int = 0) -> int:
+    """Convert input to int or return default."""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def validate_dict_keys(data: dict, required_keys: list[str]) -> bool:
+    """Verify all required keys exist in dictionary."""
+    return all(key in data for key in required_keys)
