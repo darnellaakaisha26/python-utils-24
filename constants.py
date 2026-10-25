@@ -1,30 +1,32 @@
 import os
-from typing import Final
+import logging
+from pathlib import Path
 
-# Application path constants
-BASE_DIR: Final[str] = os.path.dirname(os.path.abspath(__file__))
-LOG_DIR: Final[str] = os.path.join(BASE_DIR, 'logs')
+# Application path definitions
+BASE_DIR = Path(__file__).resolve().parent
+LOG_DIR = BASE_DIR / "logs"
 
-# Execution defaults
-DEFAULT_TIMEOUT: Final[int] = 30
-MAX_RETRIES: Final[int] = 3
+# System default configurations
+DEFAULT_ENCODING = "utf-8"
+TIMEOUT_SECONDS = 30
+MAX_RETRIES = 3
 
-# System configuration keys
-ENV_PREFIX: Final[str] = 'PYUTILS'
-REQUIRED_ENV_VARS: Final[list[str]] = ['API_KEY', 'DB_URL']
+# Logging configuration constants
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_LEVEL = logging.INFO
 
-# Content-type mapping for file processing
-SUPPORTED_EXTENSIONS: Final[set[str]] = {'.json', '.csv', '.yaml', '.txt'}
+# Environment variable keys
+ENV_PREFIX = "APP_"
+DB_URL_KEY = f"{ENV_PREFIX}DATABASE_URL"
+API_KEY_NAME = f"{ENV_PREFIX}API_KEY"
 
-# Formatting defaults
-DATE_FORMAT: Final[str] = '%Y-%m-%d %H:%M:%S'
-ENCODING: Final[str] = 'utf-8'
+# Supported file extensions for processing
+SUPPORTED_EXTENSIONS = {'.json', '.yaml', '.csv', '.txt'}
 
-def get_abs_path(filename: str) -> str:
-    """Return full system path for a local file."""
-    return os.path.join(BASE_DIR, filename)
+def get_env_var(key: str, default: str = None) -> str:
+    """Retrieve environment variable with fallback."""
+    return os.getenv(key, default)
 
-# Status codes for internal handlers
-STATUS_SUCCESS: Final[int] = 200
-STATUS_ERROR: Final[int] = 500
-STATUS_NOT_FOUND: Final[int] = 404
+# Ensure log directory exists on import
+if not LOG_DIR.exists():
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
