@@ -1,38 +1,62 @@
-import logging
-from typing import Any, List, Optional
+import math
+from typing import Any, List, Union
 
-logger = logging.getLogger(__name__)
 
 class DataProcessor:
-    """Handles batch processing of raw data inputs."""
+    """Utility class for safe data transformation and edge case handling."""
 
-    def __init__(self, debug_mode: bool = False):
-        self.debug_mode = debug_mode
+    @staticmethod
+    def safe_divide(
+        numerator: Union[int, float, str],
+        denominator: Union[int, float, str],
+        default: float = 0.0
+    ) -> float:
+        """Safely divide two numbers handling zero division, type mismatches, and invalid values."""
+        try:
+            if numerator is None or denominator is None:
+                return default
+            num = float(numerator)
+            den = float(denominator)
+            if den == 0.0 or math.isnan(num) or math.isnan(den):
+                return default
+            result = num / den
+            return default if math.isinf(result) else result
+        except (ValueError, TypeError, ZeroDivisionError):
+            return default
 
-    def sanitize_input(self, data: Any) -> Optional[str]:
-        """Cleans string data and validates existence."""
-        if not data:
-            return None
-        return str(data).strip()
-
-    def process_batch(self, items: List[Any]) -> List[str]:
-        """Filters and processes a list of raw items."""
-        processed = []
-        for item in items:
-            cleaned = self.sanitize_input(item)
-            if cleaned:
-                processed.append(cleaned)
+    @staticmethod
+    def extract_nested_key(
+        data: Any,
+        path: List[str],
+        default: Any = None
+    ) -> Any:
+        """Safely extract nested dictionary values without raising KeyError or TypeError."""
+        if not isinstance(data, dict) or not path:
+            return default
         
-        if self.debug_mode:
-            logger.info(f"Processed {len(processed)} items successfully")
-        return processed
+        current = data
+        for key in path:
+            if not isinstance(current, dict):
+                return default
+            current = current.get(key)
+            if current is None:
+                return default
+        return current
 
-    def clear_cache(self) -> None:
-        """Reset internal state for memory efficiency."""
-        # Placeholder for future state management
-        logger.debug("Cache clearing operation completed")
-
-if __name__ == "__main__":
-    proc = DataProcessor(debug_mode=True)
-    sample_data = ["  alpha ", "beta", None, "gamma  "]
-    print(proc.process_batch(sample_data))
+    @staticmethod
+    def sanitize_numeric_list(items: List[Any]) -> List[float]:
+        """Parse mixed inputs into floats, dropping non-numeric and special math values."""
+        if not isinstance(items, (list, tuple)):
+            return []
+        
+        cleaned = []
+        for item in items:
+            try:
+                if item is None or isinstance(item, bool):
+                    continue
+                val = float(item)
+                if not math.isnan(val) and not math.isinf(val):
+                    cleaned.append(val)
+            except (ValueError, TypeError):
+                continue
+        return cleaned
