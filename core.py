@@ -1,32 +1,36 @@
-import functools
 import time
+import random
+import functools
 from typing import Callable, Any
 
-# internal cache for high-frequency utility lookups
-_PERFORMANCE_CACHE = {}
+def retry_network_operation(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """
+    Decorator for retrying network operations with exponential backoff.
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            attempts = 0
+            current_delay = delay
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise e
+                    time.sleep(current_delay + random.uniform(0, 0.1))
+                    current_delay *= backoff
+            return None
+        return wrapper
+    return decorator
 
-def memoize_core(func: Callable) -> Callable:
-    """decorator for caching expensive core processing results"""
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _PERFORMANCE_CACHE:
-            _PERFORMANCE_CACHE[key] = func(*args, **kwargs)
-        return _PERFORMANCE_CACHE[key]
-    return wrapper
-
-@memoize_core
-def batch_process_data(data_size: int) -> list:
-    """simulated heavy processing task with cached output"""
-    time.sleep(0.5)
-    return [i * 2 for i in range(data_size)]
-
-class CoreProcessor:
-    def __init__(self, buffer_size: int = 1024):
-        self.buffer = [None] * buffer_size
-        self.pointer = 0
-
-    def update_buffer(self, item: Any) -> None:
-        """optimized circular buffer write operation"""
-        self.buffer[self.pointer] = item
-        self.pointer = (self.pointer + 1) % len(self.buffer)
+@retry_network_operation(max_attempts=3, delay=2.0)
+def fetch_data(url: str):
+    """
+    Example network call utility.
+    """
+    # Simulate network instability
+    if random.random() < 0.5:
+        raise ConnectionError(f"Failed to connect to {url}")
+    return {"status": 200, "data": "sample"}
