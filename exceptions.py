@@ -1,29 +1,30 @@
-class UtilityError(Exception):
-    """Base exception for python-utils-24 operations."""
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-class ConfigurationError(UtilityError):
-    """Raised when configuration constraints are violated."""
+def validate_payload(data: dict, required_keys: list):
+    """Ensures all required keys are present and values are non-empty."""
+    if not isinstance(data, dict):
+        raise ValidationError("Payload must be a dictionary")
+    
+    for key in required_keys:
+        if key not in data:
+            raise ValidationError(f"Missing required key: {key}")
+        if data[key] is None:
+            raise ValidationError(f"Value for {key} cannot be None")
 
-class ProcessingError(UtilityError):
-    """Raised when data processing fails."""
+def process_main_loop(items: list):
+    """Main loop processing with input validation layer."""
+    required = ['id', 'value']
+    processed = []
 
-def handle_exceptions(func):
-    """Decorator to wrap functions with standard error handling."""
-    def wrapper(*args, **kwargs):
+    for item in items:
         try:
-            return func(*args, **kwargs)
-        except (ValueError, TypeError) as e:
-            raise ProcessingError(f"Processing failed: {str(e)}") from e
-        except Exception as e:
-            # Log unexpected errors before re-raising
-            print(f"Critical failure in {func.__name__}: {e}")
-            raise UtilityError("An unexpected utility error occurred") from e
-    return wrapper
-
-def validate_input(value, expected_type):
-    """Utility for enforcing type safety on edge inputs."""
-    if value is None:
-        raise ConfigurationError("Input value cannot be None")
-    if not isinstance(value, expected_type):
-        raise ProcessingError(f"Expected {expected_type}, got {type(value)}")
-    return True
+            validate_payload(item, required)
+            # Business logic goes here
+            processed.append(item['value'] * 2)
+        except ValidationError as e:
+            print(f"Skipping invalid item: {e}")
+            continue
+    
+    return processed
