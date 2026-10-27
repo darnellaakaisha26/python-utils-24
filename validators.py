@@ -1,26 +1,36 @@
 import re
 from typing import Any, Optional
 
-def is_valid_email(email: str) -> bool:
-    """Validate email string format using regex."""
-    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    return bool(re.match(pattern, email))
+# regex pattern for basic alphanumeric input
+VALID_PATTERN = re.compile(r'^[a-zA-Z0-9_\-]+$')
 
-def is_non_empty_string(value: Any) -> bool:
-    """Check if input is a non-empty string."""
-    return isinstance(value, str) and len(value.strip()) > 0
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-def validate_range(value: int, min_val: int, max_val: int) -> bool:
-    """Ensure integer is within inclusive boundaries."""
-    return isinstance(value, int) and min_val <= value <= max_val
+def validate_input(data: Any, min_length: int = 3, max_length: int = 50) -> str:
+    """Validates string input based on length and regex patterns."""
+    if not isinstance(data, str):
+        raise ValidationError(f"Expected string, got {type(data).__name__}")
+    
+    cleaned = data.strip()
+    
+    if not (min_length <= len(cleaned) <= max_length):
+        raise ValidationError(f"Input length must be between {min_length} and {max_length}")
+    
+    if not VALID_PATTERN.match(cleaned):
+        raise ValidationError("Input contains forbidden characters")
+        
+    return cleaned
 
-def get_safe_int(value: Any, default: int = 0) -> int:
-    """Convert input to int or return default."""
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
-
-def validate_dict_keys(data: dict, required_keys: list[str]) -> bool:
-    """Verify all required keys exist in dictionary."""
-    return all(key in data for key in required_keys)
+def process_main_loop(items: list) -> list:
+    """Main processing loop with integrated validation logic."""
+    results = []
+    for item in items:
+        try:
+            valid_item = validate_input(item)
+            results.append(f"processed_{valid_item}")
+        except ValidationError as e:
+            print(f"Skipping invalid item '{item}': {e}")
+            continue
+    return results
