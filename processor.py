@@ -1,37 +1,40 @@
-import json
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, List, Dict
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flattens a nested dictionary into a single level."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
-    """Splits a list into smaller chunks of a specified size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be positive")
-    return [data[i:i + size] for i in range(0, len(data), size)]
+class DataProcessor:
+    """Handles transformation and validation of data payloads."""
 
-def safe_load_json(file_path: str) -> Optional[Dict[str, Any]]:
-    """Safely loads and parses a JSON file."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
+    def __init__(self, settings: Dict[str, Any]):
+        self.settings = settings
+        self.strict_mode = settings.get("strict", True)
 
-def retry_operation(func, retries: int = 3, *args, **kwargs) -> Any:
-    """Executes a function with basic retry capability."""
-    last_err = None
-    for _ in range(retries):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            last_err = e
-    raise last_err
+    def process_batch(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Cleans and filters a list of data entries."""
+        results = []
+        for entry in data:
+            try:
+                cleaned = self._sanitize(entry)
+                if cleaned:
+                    results.append(cleaned)
+            except ValueError as e:
+                if self.strict_mode:
+                    logger.error(f"Processing error: {e}")
+                    raise
+                logger.warning(f"Skipping invalid entry: {e}")
+        return results
+
+    def _sanitize(self, entry: Dict[str, Any]) -> Dict[str, Any]:
+        """Internal logic for data normalization."""
+        if not isinstance(entry, dict):
+            raise ValueError("Entry must be a dictionary")
+        
+        # Remove empty keys and normalize types
+        return {k: str(v).strip() for k, v in entry.items() if v is not None}
+
+def run_pipeline(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Entry point for processing batch operations."""
+    processor = DataProcessor({"strict": False})
+    return processor.process_batch(data)
