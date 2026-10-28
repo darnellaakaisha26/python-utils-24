@@ -1,27 +1,33 @@
-import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-class ConfigLoader:
-    """Utility for loading JSON configurations with fallback defaults."""
+class ConfigManager:
+    """Handles application configuration loading and access."""
 
-    def __init__(self, default_config: Dict[str, Any]):
-        self.defaults = default_config
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None):
+        self._config = defaults or {}
 
-    def load(self, path: str) -> Dict[str, Any]:
-        """Loads configuration from a file or returns defaults."""
-        if not os.path.exists(path):
-            return self.defaults
+    def load_from_env(self, prefix: str = "APP_") -> None:
+        """Loads configuration values from environment variables."""
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                config_key = key[len(prefix):].lower()
+                self._config[config_key] = value
 
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                user_config = json.load(f)
-                return {**self.defaults, **user_config}
-        except (json.JSONDecodeError, IOError):
-            return self.defaults
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieves a configuration value by key."""
+        return self._config.get(key, default)
 
-    @staticmethod
-    def save(path: str, config: Dict[str, Any]) -> None:
-        """Persists configuration dictionary to a JSON file."""
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(config, f, indent=4)
+    def set(self, key: str, value: Any) -> None:
+        """Sets a configuration value."""
+        self._config[key] = value
+
+    def update(self, new_config: Dict[str, Any]) -> None:
+        """Updates the internal configuration dictionary."""
+        self._config.update(new_config)
+
+    def reset(self) -> None:
+        """Clears all configuration settings."""
+        self._config.clear()
+
+config = ConfigManager()
