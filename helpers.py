@@ -1,35 +1,28 @@
-import os
-import shutil
-from typing import List, Optional
+import time
+import functools
+import logging
+from typing import Callable, Any, Type
 
-def clean_directory(path: str, extensions: Optional[List[str]] = None) -> int:
-    """Removes files with specified extensions from a directory."""
-    count = 0
-    if not os.path.exists(path):
-        return count
+logger = logging.getLogger(__name__)
 
-    for filename in os.listdir(path):
-        file_path = os.path.join(path, filename)
-        if os.path.isfile(file_path):
-            if extensions is None or filename.endswith(tuple(extensions)):
-                os.remove(file_path)
-                count += 1
-    return count
-
-def safe_move(src: str, dst: str) -> bool:
-    """Moves file ensuring destination directory exists."""
-    try:
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.move(src, dst)
-        return True
-    except (IOError, OSError):
-        return False
-
-def get_file_stats(path: str) -> dict:
-    """Returns basic metadata for a given file path."""
-    stat = os.stat(path)
-    return {
-        "size": stat.st_size,
-        "created": stat.st_ctime,
-        "modified": stat.st_mtime
-    }
+def retry_network_op(retries: int = 3, delay: float = 1.0, exceptions: tuple = (Exception, )) -> Callable:
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_exception = None
+            current_delay = delay
+            
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= 2
+            
+            logger.error(f"All {retries} attempts failed.")
+            raise last_exception
+        return wrapper
+    return decorator
