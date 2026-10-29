@@ -1,48 +1,36 @@
-"""General utility helper functions for common data manipulation tasks."""
+def validate_input(data, required_fields):
+    """Ensures all required keys are present and non-empty."""
+    if not isinstance(data, dict):
+        return False, "Input must be a dictionary"
 
-from typing import Any, Dict, Generator, List, Optional
+    for field in required_fields:
+        if field not in data or data[field] is None:
+            return False, f"Missing required field: {field}"
 
+    return True, "Validation successful"
 
-def chunk_iterable(iterable: List[Any], chunk_size: int) -> Generator[List[Any], None, None]:
-    """Yield successive n-sized chunks from an iterable."""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be greater than zero")
-    for i in range(0, len(iterable), chunk_size):
-        yield iterable[i : i + chunk_size]
+def process_data_stream(stream, schema):
+    """Main processing loop with integrated input validation."""
+    for entry in stream:
+        is_valid, message = validate_input(entry, schema)
+        
+        if not is_valid:
+            print(f"Skipping invalid entry: {message}")
+            continue
+        
+        try:
+            # Simulate core business logic processing
+            result = {k: v for k, v in entry.items() if k in schema}
+            print(f"Processing: {result}")
+        except Exception as e:
+            print(f"Error processing entry: {e}")
 
-
-def safe_get(data: Dict[str, Any], path: str, default: Optional[Any] = None, delimiter: str = ".") -> Any:
-    """Safely retrieve nested values from a dictionary using dot notation."""
-    keys = path.split(delimiter)
-    current = data
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
-
-
-def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
-    """Flatten a deeply nested dictionary into a single-level dictionary."""
-    items: List[tuple] = []
-    for key, value in d.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
-        if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
-        else:
-            items.append((new_key, value))
-    return dict(items)
-
-
-def format_bytes(bytes_num: int) -> str:
-    """Convert standard byte count into human-readable string format."""
-    if bytes_num < 0:
-        raise ValueError("bytes_num must be non-negative")
-    units = ["B", "KB", "MB", "GB", "TB", "PB"]
-    size = float(bytes_num)
-    unit_index = 0
-    while size >= 1024.0 and unit_index < len(units) - 1:
-        size /= 1024.0
-        unit_index += 1
-    return f"{size:.2f} {units[unit_index]}"
+if __name__ == "__main__":
+    # Example usage for the main processing loop
+    sample_data = [
+        {"id": 1, "name": "item_a"},
+        {"id": 2},  # Missing name
+        {"name": "item_c"}  # Missing id
+    ]
+    required = ["id", "name"]
+    process_data_stream(sample_data, required)
