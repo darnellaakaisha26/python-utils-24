@@ -1,33 +1,31 @@
+import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-class ConfigManager:
-    """Handles application configuration loading and access."""
+class ConfigLoader:
+    """Utility for loading and merging configuration files with defaults."""
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None):
-        self._config = defaults or {}
+    def __init__(self, defaults: Dict[str, Any] = None):
+        self.defaults = defaults or {}
 
-    def load_from_env(self, prefix: str = "APP_") -> None:
-        """Loads configuration values from environment variables."""
-        for key, value in os.environ.items():
-            if key.startswith(prefix):
-                config_key = key[len(prefix):].lower()
-                self._config[config_key] = value
+    def load(self, filepath: str) -> Dict[str, Any]:
+        """Loads json config and merges with instance defaults."""
+        config = self.defaults.copy()
+        
+        if not os.path.exists(filepath):
+            return config
+            
+        try:
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    config.update(data)
+        except (json.JSONDecodeError, IOError):
+            pass
+            
+        return config
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieves a configuration value by key."""
-        return self._config.get(key, default)
-
-    def set(self, key: str, value: Any) -> None:
-        """Sets a configuration value."""
-        self._config[key] = value
-
-    def update(self, new_config: Dict[str, Any]) -> None:
-        """Updates the internal configuration dictionary."""
-        self._config.update(new_config)
-
-    def reset(self) -> None:
-        """Clears all configuration settings."""
-        self._config.clear()
-
-config = ConfigManager()
+def get_config(filepath: str, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Helper function for quick config access."""
+    loader = ConfigLoader(defaults)
+    return loader.load(filepath)
