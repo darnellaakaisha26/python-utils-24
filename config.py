@@ -1,31 +1,26 @@
-import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-class ConfigLoader:
-    """Utility for loading and merging configuration files with defaults."""
+class ConfigManager:
+    """Handles application configuration settings."""
 
-    def __init__(self, defaults: Dict[str, Any] = None):
-        self.defaults = defaults or {}
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
+        self._config: Dict[str, Any] = defaults or {}
 
-    def load(self, filepath: str) -> Dict[str, Any]:
-        """Loads json config and merges with instance defaults."""
-        config = self.defaults.copy()
-        
-        if not os.path.exists(filepath):
-            return config
-            
-        try:
-            with open(filepath, 'r') as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    config.update(data)
-        except (json.JSONDecodeError, IOError):
-            pass
-            
-        return config
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieve a configuration value by key."""
+        return self._config.get(key, default)
 
-def get_config(filepath: str, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
-    """Helper function for quick config access."""
-    loader = ConfigLoader(defaults)
-    return loader.load(filepath)
+    def set(self, key: str, value: Any) -> None:
+        """Update a configuration value."""
+        self._config[key] = value
+
+    def load_from_env(self, prefix: str = "APP_") -> None:
+        """Load configuration from environment variables with a prefix."""
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                config_key = key[len(prefix):].lower()
+                self._config[config_key] = value
+
+    def __repr__(self) -> str:
+        return f"ConfigManager(keys={list(self._config.keys())})"
