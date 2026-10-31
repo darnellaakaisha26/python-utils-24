@@ -1,44 +1,42 @@
-"""General purpose helper utilities for common data manipulation tasks."""
+"""General utility helper functions for object and string manipulation."""
 
-from typing import Any, Dict, List, TypeVar, Optional, Generator
-
-T = TypeVar("T")
+from typing import Any, Dict, List, Optional
 
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
-    """Recursively flatten a nested dictionary with custom key separator."""
+def flatten_dict(
+    nested_dict: Dict[str, Any], parent_key: str = "", sep: str = "."
+) -> Dict[str, Any]:
+    """Recursively flatten a nested dictionary into single-level key-value pairs."""
     items: List[tuple] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
+    for key, value in nested_dict.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
         else:
-            items.append((new_key, v))
+            items.append((new_key, value))
     return dict(items)
 
 
-def chunk_list(data: List[T], chunk_size: int) -> Generator[List[T], None, None]:
-    """Yield successive chunks of specified size from a list."""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be greater than zero")
-    for i in range(0, len(data), chunk_size):
-        yield data[i : i + chunk_size]
-
-
-def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge dict2 into dict1 without mutating inputs."""
-    result = dict1.copy()
-    for key, value in dict2.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def safe_cast(val: Any, to_type: type, default: Optional[Any] = None) -> Any:
-    """Safely cast a value to a target type, returning default on failure."""
+def safe_cast(
+    value: Any, target_type: type, default: Optional[Any] = None
+) -> Any:
+    """Safely convert a value to a target type without raising exceptions."""
     try:
-        return to_type(val)
+        return target_type(value)
     except (ValueError, TypeError):
         return default
+
+
+def truncate_string(text: str, max_length: int = 50, suffix: str = "...") -> str:
+    """Truncate string to maximum length and append suffix if shortened."""
+    if not text or len(text) <= max_length:
+        return text
+    adjusted_length = max(0, max_length - len(suffix))
+    return text[:adjusted_length] + suffix
+
+
+def chunk_list(data: List[Any], chunk_size: int) -> List[List[Any]]:
+    """Split a list into smaller fixed-size chunks."""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be greater than zero")
+    return [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
