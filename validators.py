@@ -1,36 +1,33 @@
 import re
 from typing import Any, Optional
 
-# regex pattern for basic alphanumeric input
-VALID_PATTERN = re.compile(r'^[a-zA-Z0-9_\-]+$')
-
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
-    pass
-
-def validate_input(data: Any, min_length: int = 3, max_length: int = 50) -> str:
-    """Validates string input based on length and regex patterns."""
-    if not isinstance(data, str):
-        raise ValidationError(f"Expected string, got {type(data).__name__}")
+def validate_input(data: Any) -> Optional[str]:
+    """Validates input structure and type for main loop processing."""
+    if not isinstance(data, dict):
+        return "input must be a dictionary"
     
-    cleaned = data.strip()
+    if 'id' not in data or not isinstance(data['id'], int):
+        return "missing or invalid integer 'id' field"
     
-    if not (min_length <= len(cleaned) <= max_length):
-        raise ValidationError(f"Input length must be between {min_length} and {max_length}")
+    if 'payload' not in data or not isinstance(data['payload'], str):
+        return "missing or invalid string 'payload' field"
     
-    if not VALID_PATTERN.match(cleaned):
-        raise ValidationError("Input contains forbidden characters")
+    if len(data['payload']) > 1024:
+        return "payload exceeds maximum length of 1024"
         
-    return cleaned
+    return None
 
-def process_main_loop(items: list) -> list:
-    """Main processing loop with integrated validation logic."""
-    results = []
+def sanitize_payload(payload: str) -> str:
+    """Removes non-alphanumeric characters from payload."""
+    return re.sub(r'[^a-zA-Z0-9 ]', '', payload)
+
+# Main loop simulation for context
+def process_stream(items: list):
     for item in items:
-        try:
-            valid_item = validate_input(item)
-            results.append(f"processed_{valid_item}")
-        except ValidationError as e:
-            print(f"Skipping invalid item '{item}': {e}")
+        error = validate_input(item)
+        if error:
+            print(f"Skipping invalid item: {error}")
             continue
-    return results
+            
+        sanitized = sanitize_payload(item['payload'])
+        print(f"Processing item {item['id']}: {sanitized}")
