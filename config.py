@@ -1,26 +1,42 @@
 import os
 from typing import Any, Dict, Optional
 
-class ConfigManager:
-    """Handles application configuration settings."""
+class ConfigLoader:
+    """Handles loading and retrieval of application configurations."""
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
-        self._config: Dict[str, Any] = defaults or {}
+    def __init__(self, env_prefix: str = "APP_") -> None:
+        self.env_prefix: str = env_prefix
+        self._cache: Dict[str, Any] = {}
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a configuration value by key."""
-        return self._config.get(key, default)
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        """
+        Retrieve a configuration value from environment variables or cache.
 
-    def set(self, key: str, value: Any) -> None:
-        """Update a configuration value."""
-        self._config[key] = value
+        Args:
+            key: The configuration setting name.
+            default: Fallback value if key is not found.
 
-    def load_from_env(self, prefix: str = "APP_") -> None:
-        """Load configuration from environment variables with a prefix."""
-        for key, value in os.environ.items():
-            if key.startswith(prefix):
-                config_key = key[len(prefix):].lower()
-                self._config[config_key] = value
+        Returns:
+            The configuration value or the provided default.
+        """
+        if key in self._cache:
+            return self._cache[key]
 
-    def __repr__(self) -> str:
-        return f"ConfigManager(keys={list(self._config.keys())})"
+        env_key: str = f"{self.env_prefix}{key.upper()}"
+        value: Any = os.getenv(env_key, default)
+        self._cache[key] = value
+        return value
+
+    def update(self, key: str, value: Any) -> None:
+        """
+        Manually override a configuration value.
+
+        Args:
+            key: Configuration key name.
+            value: New configuration value to store.
+        """
+        self._cache[key] = value
+
+def load_config() -> ConfigLoader:
+    """Factory function for creating a standard config loader."""
+    return ConfigLoader()
