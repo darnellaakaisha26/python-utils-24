@@ -1,67 +1,40 @@
-"""Data processing utilities with comprehensive edge case error handling."""
-
-import math
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Generator, Iterable, Union
+import itertools
 
 
-class ProcessingError(Exception):
-    """Raised when data transformation fails irrecoverably."""
-
-    pass
-
-
-def safe_cast_float(value: Any, default: Optional[float] = None) -> Optional[float]:
-    """Safely convert various input types to float, handling edge cases."""
-    if value is None:
-        return default
-
-    if isinstance(value, (int, float)):
-        if math.isnan(value) or math.isinf(value):
-            return default
-        return float(value)
-
-    if isinstance(value, str):
-        cleaned = value.strip().replace(",", "")
-        if not cleaned:
-            return default
-        try:
-            val = float(cleaned)
-            return default if math.isnan(val) or math.isinf(val) else val
-        except (ValueError, TypeError):
-            return default
-
-    return default
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
+    """Recursively flatten a nested dictionary into key-value pairs with separated keys."""
+    items: List[tuple] = []
+    for key, value in d.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
 
 
-def process_numeric_batch(
-    data: List[Any], scale_factor: float = 1.0, skip_invalid: bool = True
-) -> List[float]:
-    """Process a list of raw items into scaled floating-point values."""
-    if not isinstance(data, list):
-        raise TypeError(f"Expected list for data, got {type(data).__name__}")
+def clean_nulls(data: Union[Dict[str, Any], List[Any]]) -> Union[Dict[str, Any], List[Any]]:
+    """Recursively remove None values from dictionaries and lists."""
+    if isinstance(data, dict):
+        return {
+            k: clean_nulls(v) if isinstance(v, (dict, list)) else v
+            for k, v in data.items()
+            if v is not None
+        }
+    elif isinstance(data, list):
+        return [
+            clean_nulls(item) if isinstance(item, (dict, list)) else item
+            for item in data
+            if item is not None
+        ]
+    return data
 
-    if scale_factor == 0 or math.isnan(scale_factor) or math.isinf(scale_factor):
-        raise ValueError("scale_factor must be a non-zero finite number")
 
-    results: List[float] = []
-
-    for idx, item in enumerate(data):
-        cast_val = safe_cast_float(item)
-
-        if cast_val is None:
-            if not skip_invalid:
-                raise ProcessingError(f"Invalid numeric value at index {idx}: {item!r}")
-            continue
-
-        try:
-            scaled = cast_val * scale_factor
-            if math.isinf(scaled):
-                if not skip_invalid:
-                    raise ProcessingError(f"Numeric overflow at index {idx}")
-                continue
-            results.append(scaled)
-        except Exception as err:
-            if not skip_invalid:
-                raise ProcessingError(f"Error processing index {idx}: {err}") from err
-
-    return results
+def chunk_iterable(iterable: Iterable[Any], chunk_size: int) -> Generator[List[Any], None, None]:
+    """Yield successive n-sized chunks from an iterable collection."""
+    if chunk_size < 1:
+        raise ValueError("chunk_size must be at least 1")
+    iterator = iter(iterable)
+    while chunk := list(itertools.islice(iterator, chunk_size)):
+        yield chunk
