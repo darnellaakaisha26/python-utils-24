@@ -1,42 +1,41 @@
-"""General utility helper functions for object and string manipulation."""
-
-from typing import Any, Dict, List, Optional
-
-
-def flatten_dict(
-    nested_dict: Dict[str, Any], parent_key: str = "", sep: str = "."
-) -> Dict[str, Any]:
-    """Recursively flatten a nested dictionary into single-level key-value pairs."""
-    items: List[tuple] = []
-    for key, value in nested_dict.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
-        if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
-        else:
-            items.append((new_key, value))
-    return dict(items)
+import functools
+import random
+import time
+from typing import Any, Callable, Tuple, Type
 
 
-def safe_cast(
-    value: Any, target_type: type, default: Optional[Any] = None
-) -> Any:
-    """Safely convert a value to a target type without raising exceptions."""
-    try:
-        return target_type(value)
-    except (ValueError, TypeError):
-        return default
+def retry_on_exception(
+    retries: int = 3,
+    backoff_factor: float = 1.0,
+    jitter: bool = True,
+    exceptions: Tuple[Type[Exception], ...] = (Exception,),
+) -> Callable:
+    """Decorator to retry a network or standard function call with exponential backoff.
 
+    :param retries: Maximum number of attempts before raising the exception.
+    :param backoff_factor: Multiplier for exponential backoff delay.
+    :param jitter: Adds random variation to sleep time to prevent thundering herds.
+    :param exceptions: Tuple of exception types to catch and retry.
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            attempt = 0
+            while attempt < retries:
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as exc:
+                    attempt += 1
+                    if attempt >= retries:
+                        raise exc
 
-def truncate_string(text: str, max_length: int = 50, suffix: str = "...") -> str:
-    """Truncate string to maximum length and append suffix if shortened."""
-    if not text or len(text) <= max_length:
-        return text
-    adjusted_length = max(0, max_length - len(suffix))
-    return text[:adjusted_length] + suffix
+                    # Calculate exponential backoff delay
+                    delay = backoff_factor * (2 ** (attempt - 1))
+                    if jitter:
+                        delay += random.uniform(0, 0.1 * delay)
 
+                    time.sleep(delay)
 
-def chunk_list(data: List[Any], chunk_size: int) -> List[List[Any]]:
-    """Split a list into smaller fixed-size chunks."""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be greater than zero")
-    return [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
+        return wrapper
+
+    return decorator
