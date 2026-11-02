@@ -1,40 +1,40 @@
-from typing import Any, Dict, List, Generator, Iterable, Union
-import itertools
+from typing import List, Dict, Any, Optional
 
+class DataProcessor:
+    """Utility class for standardizing list-based data structures."""
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
-    """Recursively flatten a nested dictionary into key-value pairs with separated keys."""
-    items: List[tuple] = []
-    for key, value in d.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
-        if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
-        else:
-            items.append((new_key, value))
-    return dict(items)
+    def __init__(self, key_prefix: str = "item") -> None:
+        self.key_prefix: str = key_prefix
 
+    def transform(self, items: List[Any]) -> Dict[str, Any]:
+        """
+        Converts a list of items into a dictionary with indexed keys.
 
-def clean_nulls(data: Union[Dict[str, Any], List[Any]]) -> Union[Dict[str, Any], List[Any]]:
-    """Recursively remove None values from dictionaries and lists."""
-    if isinstance(data, dict):
-        return {
-            k: clean_nulls(v) if isinstance(v, (dict, list)) else v
-            for k, v in data.items()
-            if v is not None
-        }
-    elif isinstance(data, list):
-        return [
-            clean_nulls(item) if isinstance(item, (dict, list)) else item
-            for item in data
-            if item is not None
-        ]
-    return data
+        :param items: List of data objects to process
+        :return: Dictionary containing the mapped data
+        """
+        if not isinstance(items, list):
+            raise ValueError("Input must be a list")
 
+        return {f"{self.key_prefix}_{i}": val for i, val in enumerate(items)}
 
-def chunk_iterable(iterable: Iterable[Any], chunk_size: int) -> Generator[List[Any], None, None]:
-    """Yield successive n-sized chunks from an iterable collection."""
-    if chunk_size < 1:
-        raise ValueError("chunk_size must be at least 1")
-    iterator = iter(iterable)
-    while chunk := list(itertools.islice(iterator, chunk_size)):
-        yield chunk
+    def filter_nulls(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Removes key-value pairs where the value is None.
+
+        :param data: Dictionary to clean
+        :return: Filtered dictionary
+        """
+        return {k: v for k, v in data.items() if v is not None}
+
+def process_batch(data_list: List[Any], prefix: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Batch transformation of raw list data.
+
+    :param data_list: Input collection
+    :param prefix: Optional string prefix for dictionary keys
+    :return: Processed result dictionary
+    """
+    proc = DataProcessor(key_prefix=prefix or "entry")
+    mapped_data = proc.transform(data_list)
+    return proc.filter_nulls(mapped_data)
