@@ -1,26 +1,38 @@
-import sys
+import functools
+import time
+from typing import Callable, Any, Dict
 
-def validate_input(data):
-    """Ensures input is a non-empty string for processing."""
-    if not isinstance(data, str) or not data.strip():
-        raise ValueError("Invalid input: expected non-empty string")
-    return data.strip()
+# Cache to store results of expensive computations
+_CACHE: Dict[tuple, Any] = {}
 
-def process_payloads(items):
-    """Main loop for secure data ingestion."""
-    results = []
-    for item in items:
-        try:
-            clean_data = validate_input(item)
-            # Mock transformation logic
-            processed = clean_data.upper()
-            results.append(processed)
-        except (ValueError, TypeError) as e:
-            print(f"Skipping invalid entry: {e}", file=sys.stderr)
-            continue
-    return results
+def memoize(func: Callable) -> Callable:
+    """Decorator for caching function return values."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _CACHE:
+            _CACHE[key] = func(*args, **kwargs)
+        return _CACHE[key]
+    return wrapper
 
-if __name__ == "__main__":
-    raw_data = ["alpha", "  ", 123, "beta"]
-    final_output = process_payloads(raw_data)
-    print(f"Processing complete: {final_output}")
+def batch_process(data: list, chunk_size: int = 100) -> list:
+    """Generator for processing data in manageable chunks."""
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
+
+class PerformanceTracker:
+    """Simple context manager for execution time logging."""
+    def __init__(self, label: str):
+        self.label = label
+
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        elapsed = time.perf_counter() - self.start
+        print(f"[Performance] {self.label}: {elapsed:.4f}s")
+
+def optimized_sum(numbers: list) -> float:
+    """Use built-in summation for speed efficiency."""
+    return float(sum(numbers))
