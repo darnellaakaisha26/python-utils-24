@@ -1,49 +1,48 @@
 # python-utils-24
 
-A comprehensive collection of production-ready Python utility functions designed to streamline daily development tasks. This library focuses on performance, type-safety, and reducing boilerplate code in data processing and system operations.
+A curated collection of production-ready Python utility functions designed to streamline boilerplate code in data processing and automation tasks. This library focuses on performance, type safety, and minimizing dependencies for cleaner project integration.
 
 ## Features
 
-*   **Robust File Operations:** Simplified wrappers for recursive directory traversal and high-speed JSON/YAML configuration parsing.
-*   **Performance Decorators:** Built-in tools for function execution timing, thread-safe memoization, and automatic retry logic with exponential backoff.
-*   **Data Validation:** Lightweight schema validation helpers for dictionaries and complex object structures.
-*   **String Manipulation:** Advanced sanitization and pattern matching utilities for log parsing and input normalization.
+*   **Robust File Operations:** Advanced wrappers for path handling, directory recursive creation, and atomic file writes.
+*   **Performance Decorators:** Built-in caching mechanisms, retry logic with exponential backoff, and execution time logging.
+*   **String Sanitization:** Comprehensive cleaning tools for normalizing filenames, email formats, and Unicode stripping.
+*   **Lightweight Core:** Zero-dependency architecture ensuring compatibility across Python 3.8+ environments.
 
 ## Installation
 
-Install the latest version directly from PyPI:
+Install the package directly via pip:
 
 ```bash
 pip install python-utils-24
 ```
 
-Alternatively, install from source:
+To include it in your `requirements.txt` file:
 
-```bash
-git clone https://github.com/Developer/python-utils-24.git
-cd python-utils-24
-pip install .
+```text
+python-utils-24>=1.0.0
 ```
 
-## Usage
+## Basic Usage
 
-Leverage the decorator-based utility suite to improve code maintainability and execution tracking:
+The library is designed for quick imports to solve common architectural hurdles. Below is an example of the retry decorator and atomic file writing:
 
 ```python
-from pyutils24.decorators import time_execution
-from pyutils24.io import load_json
+from pyutils import retry, atomic_write
 
-@time_execution
-def process_data(file_path):
-    data = load_json(file_path)
-    # Perform complex logic
-    return data
+# Automatically retry a network call up to 3 times
+@retry(attempts=3, delay=2)
+def fetch_data():
+    # Simulated fragile operation
+    pass
 
-result = process_data("config.json")
+# Write data safely to disk without file corruption
+data = "System state saved."
+atomic_write("config.txt", data)
 ```
 
 ## License
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
