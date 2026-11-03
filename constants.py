@@ -1,32 +1,30 @@
 import os
-import logging
-from pathlib import Path
+from typing import Final
 
-# Application path definitions
-BASE_DIR = Path(__file__).resolve().parent
-LOG_DIR = BASE_DIR / "logs"
+# Application configuration defaults
+APP_NAME: Final[str] = "python-utils-24"
+DEFAULT_LOG_LEVEL: Final[str] = "INFO"
+MAX_RETRIES: Final[int] = 3
+TIMEOUT_SECONDS: Final[int] = 30
 
-# System default configurations
-DEFAULT_ENCODING = "utf-8"
-TIMEOUT_SECONDS = 30
-MAX_RETRIES = 3
+# File system paths
+BASE_DIR: Final[str] = os.path.dirname(os.path.abspath(__file__))
+LOG_DIR: Final[str] = os.path.join(BASE_DIR, "logs")
+DATA_DIR: Final[str] = os.path.join(BASE_DIR, "data")
 
-# Logging configuration constants
-LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_LEVEL = logging.INFO
+# Regex patterns
+EMAIL_PATTERN: Final[str] = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
-# Environment variable keys
-ENV_PREFIX = "APP_"
-DB_URL_KEY = f"{ENV_PREFIX}DATABASE_URL"
-API_KEY_NAME = f"{ENV_PREFIX}API_KEY"
+# Exit codes
+SUCCESS: Final[int] = 0
+ERROR_GENERAL: Final[int] = 1
+ERROR_CONFIG: Final[int] = 2
 
-# Supported file extensions for processing
-SUPPORTED_EXTENSIONS = {'.json', '.yaml', '.csv', '.txt'}
-
-def get_env_var(key: str, default: str = None) -> str:
-    """Retrieve environment variable with fallback."""
+def get_env_variable(key: str, default: str) -> str:
+    """Fetch environment variable with a fallback."""
     return os.getenv(key, default)
 
-# Ensure log directory exists on import
-if not LOG_DIR.exists():
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
+# Ensure directories exist
+for directory in [LOG_DIR, DATA_DIR]:
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
