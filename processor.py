@@ -1,40 +1,48 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Optional, Any, Callable
 
 class DataProcessor:
-    """Utility class for standardizing list-based data structures."""
+    """Handles transformation logic for structured datasets."""
 
-    def __init__(self, key_prefix: str = "item") -> None:
-        self.key_prefix: str = key_prefix
+    def __init__(self, transform_func: Optional[Callable[[Any], Any]] = None) -> None:
+        """Initialize with an optional transformation strategy."""
+        self.transform_func = transform_func
 
-    def transform(self, items: List[Any]) -> Dict[str, Any]:
+    def process_batch(self, items: List[Any]) -> List[Any]:
         """
-        Converts a list of items into a dictionary with indexed keys.
+        Apply transformation to each item in the provided list.
 
-        :param items: List of data objects to process
-        :return: Dictionary containing the mapped data
+        Args:
+            items: A list of arbitrary elements to process.
+
+        Returns:
+            A list of transformed elements.
         """
-        if not isinstance(items, list):
-            raise ValueError("Input must be a list")
+        if not self.transform_func:
+            return items
+        return [self.transform_func(item) for item in items]
 
-        return {f"{self.key_prefix}_{i}": val for i, val in enumerate(items)}
-
-    def filter_nulls(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def filter_nulls(self, items: List[Optional[Any]]) -> List[Any]:
         """
-        Removes key-value pairs where the value is None.
+        Remove None values from the input list.
 
-        :param data: Dictionary to clean
-        :return: Filtered dictionary
+        Args:
+            items: A list potentially containing None values.
+
+        Returns:
+            A filtered list containing only non-null values.
         """
-        return {k: v for k, v in data.items() if v is not None}
+        return [item for item in items if item is not None]
 
-def process_batch(data_list: List[Any], prefix: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Batch transformation of raw list data.
+    def summarize(self, items: List[int]) -> float:
+        """
+        Calculate the average of a list of integers.
 
-    :param data_list: Input collection
-    :param prefix: Optional string prefix for dictionary keys
-    :return: Processed result dictionary
-    """
-    proc = DataProcessor(key_prefix=prefix or "entry")
-    mapped_data = proc.transform(data_list)
-    return proc.filter_nulls(mapped_data)
+        Args:
+            items: A list of numeric values.
+
+        Returns:
+            The mean value of the list.
+        """
+        if not items:
+            return 0.0
+        return sum(items) / len(items)
