@@ -1,41 +1,27 @@
-import functools
-import random
 import time
-from typing import Any, Callable, Tuple, Type
+import functools
+import logging
+from typing import Callable, Any, Type, Tuple
 
+logger = logging.getLogger(__name__)
 
-def retry_on_exception(
-    retries: int = 3,
-    backoff_factor: float = 1.0,
-    jitter: bool = True,
-    exceptions: Tuple[Type[Exception], ...] = (Exception,),
-) -> Callable:
-    """Decorator to retry a network or standard function call with exponential backoff.
-
-    :param retries: Maximum number of attempts before raising the exception.
-    :param backoff_factor: Multiplier for exponential backoff delay.
-    :param jitter: Adds random variation to sleep time to prevent thundering herds.
-    :param exceptions: Tuple of exception types to catch and retry.
-    """
-    def decorator(func: Callable) -> Callable:
+def retry(exceptions: Tuple[Type[Exception], ...], max_attempts: int = 3, delay: float = 1.0):
+    """Decorator for retrying functions on specific exceptions."""
+    def decorator(func: Callable):
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempt = 0
-            while attempt < retries:
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
                 try:
                     return func(*args, **kwargs)
-                except exceptions as exc:
-                    attempt += 1
-                    if attempt >= retries:
-                        raise exc
-
-                    # Calculate exponential backoff delay
-                    delay = backoff_factor * (2 ** (attempt - 1))
-                    if jitter:
-                        delay += random.uniform(0, 0.1 * delay)
-
-                    time.sleep(delay)
-
+                except exceptions as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        logger.error(f"Failed after {max_attempts} attempts: {e}")
+                        raise
+                    sleep_time = delay * (2 ** (attempts - 1))
+                    logger.warning(f"Retry {attempts}/{max_attempts} after {sleep_time}s due to {type(e).__name__}")
+                    time.sleep(sleep_time)
+            return func(*args, **kwargs)
         return wrapper
-
     return decorator
