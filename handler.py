@@ -1,28 +1,38 @@
-import json
-from typing import Any, Dict, Optional
+import logging
 
-def safe_json_load(data: str, default: Optional[Dict] = None) -> Dict[str, Any]:
-    """Parses a JSON string with a fallback default value."""
-    try:
-        return json.loads(data)
-    except (json.JSONDecodeError, TypeError):
-        return default if default is not None else {}
+# Configure logger for module tracking
+logger = logging.getLogger(__name__)
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flattens a nested dictionary into a single depth dictionary."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+def validate_input(data):
+    """Ensures input is a non-empty dictionary with required keys."""
+    if not isinstance(data, dict):
+        return False, "Data must be a dictionary"
+    if "task_id" not in data or "payload" not in data:
+        return False, "Missing mandatory keys: task_id, payload"
+    return True, None
 
-def sanitize_data(data: Dict[str, Any], keys_to_mask: Optional[list] = None) -> Dict[str, Any]:
-    """Masks specific keys in a dictionary for logging security."""
-    keys_to_mask = keys_to_mask or ['password', 'token', 'secret']
-    return {
-        k: ('***' if k in keys_to_mask else v)
-        for k, v in data.items()
-    }
+def run_processing_loop(data_stream):
+    """Main processing loop with integrated input validation."""
+    for entry in data_stream:
+        is_valid, error = validate_input(entry)
+        
+        if not is_valid:
+            logger.error(f"validation failed: {error}")
+            continue
+
+        try:
+            process_task(entry['task_id'], entry['payload'])
+        except Exception as e:
+            logger.error(f"task {entry['task_id']} execution error: {e}")
+
+def process_task(task_id, payload):
+    """Actual business logic execution."""
+    print(f"Processing task {task_id} with payload {payload}")
+
+if __name__ == '__main__':
+    mock_data = [
+        {"task_id": 1, "payload": "data_a"},
+        {"invalid": "payload"},
+        {"task_id": 2, "payload": "data_b"}
+    ]
+    run_processing_loop(mock_data)
