@@ -1,35 +1,28 @@
-import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-def validate_payload(data: Dict[str, Any]) -> bool:
-    """Validates input structure and types for processing loop."""
-    required_fields = {"id": int, "payload": str, "timestamp": float}
-    
-    for field, expected_type in required_fields.items():
-        if field not in data:
-            return False
-        if not isinstance(data[field], expected_type):
-            return False
-            
-    if not re.match(r"^[a-zA-Z0-9_]+$", data["payload"]):
+def validate_schema(data: Dict[str, Any], schema: Dict[str, type]) -> List[str]:
+    """Validate dictionary keys and value types against a schema."""
+    errors = []
+    for key, expected_type in schema.items():
+        if key not in data:
+            errors.append(f"missing required key: {key}")
+        elif not isinstance(data[key], expected_type):
+            errors.append(f"invalid type for {key}: expected {expected_type.__name__}")
+    return errors
+
+def sanitize_input(data: Any, default: Any = None) -> Any:
+    """Return stripped string or default if input is empty or None."""
+    if isinstance(data, str):
+        clean = data.strip()
+        return clean if clean else default
+    return data if data is not None else default
+
+def check_list_types(items: List[Any], element_type: type) -> bool:
+    """Verify all elements in a list match a specific type."""
+    if not isinstance(items, list):
         return False
-        
-    return True
+    return all(isinstance(item, element_type) for item in items)
 
-def sanitize_input(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Cleans input data by stripping whitespace and normalizing keys."""
-    return {
-        "id": int(data["id"]),
-        "payload": str(data["payload"]).strip(),
-        "timestamp": float(data["timestamp"])
-    }
-
-def process_with_validation(data: Any) -> Optional[Dict[str, Any]]:
-    """Main validation entry point for the processing loop."""
-    if not isinstance(data, dict):
-        return None
-        
-    if not validate_payload(data):
-        return None
-        
-    return sanitize_input(data)
+def enforce_range(value: int, min_val: int, max_val: int) -> int:
+    """Constrain numeric value within defined inclusive bounds."""
+    return max(min_val, min(value, max_val))
