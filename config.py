@@ -1,42 +1,54 @@
+import json
 import os
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+
 
 class ConfigLoader:
-    """Handles loading and retrieval of application configurations."""
+    """Utility to manage application configurations with fallback defaults."""
 
-    def __init__(self, env_prefix: str = "APP_") -> None:
-        self.env_prefix: str = env_prefix
-        self._cache: Dict[str, Any] = {}
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
+        self._defaults: Dict[str, Any] = defaults or {}
+        self._config: Dict[str, Any] = self._defaults.copy()
 
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """
-        Retrieve a configuration value from environment variables or cache.
+    def load_dict(self, config_data: Dict[str, Any]) -> None:
+        """Merge custom dictionary into current configuration."""
+        self._config.update(config_data)
 
-        Args:
-            key: The configuration setting name.
-            default: Fallback value if key is not found.
+    def load_json(self, filepath: Union[str, Path]) -> bool:
+        """Load configuration options from a JSON file if it exists."""
+        path = Path(filepath)
+        if not path.is_file():
+            return False
+        
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    self._config.update(data)
+                    return True
+        except (json.JSONDecodeError, OSError):
+            return False
+        return False
 
-        Returns:
-            The configuration value or the provided default.
-        """
-        if key in self._cache:
-            return self._cache[key]
+    def load_env(self, prefix: str = "APP_") -> None:
+        """Override matching values using environment variables."""
+        for key in list(self._config.keys()):
+            env_var = f"{prefix}{key.upper()}"
+            if env_var in os.environ:
+                val = os.environ[env_var]
+                # Basic string type conversion for boolean and numeric values
+                if val.lower() in ("true", "false"):
+                    self._config[key] = val.lower() == "true"
+                elif val.isdigit():
+                    self._config[key] = int(val)
+                else:
+                    self._config[key] = val
 
-        env_key: str = f"{self.env_prefix}{key.upper()}"
-        value: Any = os.getenv(env_key, default)
-        self._cache[key] = value
-        return value
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieve value for a key with optional fallback default."""
+        return self._config.get(key, default)
 
-    def update(self, key: str, value: Any) -> None:
-        """
-        Manually override a configuration value.
-
-        Args:
-            key: Configuration key name.
-            value: New configuration value to store.
-        """
-        self._cache[key] = value
-
-def load_config() -> ConfigLoader:
-    """Factory function for creating a standard config loader."""
-    return ConfigLoader()
+    def as_dict(self) -> Dict[str, Any]:
+        """Return a copy of the active configuration dictionary."""
+        return self._config.copy()
