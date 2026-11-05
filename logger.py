@@ -1,48 +1,55 @@
 import logging
-import os
+import sys
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from typing import Optional
 
 
 def setup_logger(
     name: str = "app",
-    log_file: Optional[str] = "logs/app.log",
+    log_file: Optional[str] = "app.log",
     level: int = logging.INFO,
     max_bytes: int = 5 * 1024 * 1024,
     backup_count: int = 5,
     log_to_console: bool = True,
 ) -> logging.Logger:
-    """Configures and returns a logger instance with rotating file support."""
+    """Configure and return a logger with optional file rotation and console output."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent duplicate handlers if setup is called multiple times
+    # Prevent duplicate handlers when re-configuring
     if logger.hasHandlers():
-        return logger
+        logger.handlers.clear()
 
     formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - [%(levelname)s] - %(message)s"
+        fmt="[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     if log_file:
-        log_dir = os.path.dirname(log_file)
-        if log_dir:
-            os.makedirs(log_dir, exist_ok=True)
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
 
         file_handler = RotatingFileHandler(
-            filename=log_file,
+            filename=log_path,
             maxBytes=max_bytes,
             backupCount=backup_count,
             encoding="utf-8",
         )
         file_handler.setFormatter(formatter)
-        file_handler.setLevel(level)
         logger.addHandler(file_handler)
 
     if log_to_console:
-        console_handler = logging.StreamHandler()
+        console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
-        console_handler.setLevel(level)
         logger.addHandler(console_handler)
 
+    return logger
+
+
+def get_logger(name: str = "app") -> logging.Logger:
+    """Retrieve an existing logger or initialize a default one."""
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        return setup_logger(name=name)
     return logger
