@@ -1,57 +1,54 @@
-"""Custom exception classes for the python-utils-24 library."""
+"""Custom exception hierarchy for utility operations."""
 
 from typing import Any, Dict, Optional
 
 
 class BaseUtilError(Exception):
-    """Base exception class for all errors raised by the utility package."""
+    """Base exception class for all library errors."""
 
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message)
-        self.message: str = message
-        self.details: Dict[str, Any] = details or {}
+        self.message = message
+        self.details = details or {}
 
     def to_dict(self) -> Dict[str, Any]:
-        """Return a structured dictionary representation of the exception."""
+        """Return exception information as a structured dictionary."""
         return {
-            "error_type": self.__class__.__name__,
+            "error": self.__class__.__name__,
             "message": self.message,
             "details": self.details,
         }
 
+    def __str__(self) -> str:
+        if self.details:
+            return f"{self.message} (details: {self.details})"
+        return self.message
+
 
 class ValidationError(BaseUtilError):
-    """Raised when data validation fails for an input value."""
+    """Raised when data validation fails."""
 
-    def __init__(
-        self, message: str, invalid_value: Any = None, field_name: Optional[str] = None
-    ) -> None:
-        details: Dict[str, Any] = {}
-        if invalid_value is not None:
-            details["invalid_value"] = str(invalid_value)
-        if field_name is not None:
-            details["field_name"] = field_name
-        super().__init__(message, details=details)
+    pass
 
 
 class ConfigurationError(BaseUtilError):
-    """Raised when a configuration parameter is missing or invalid."""
+    """Raised when invalid configuration parameters are provided."""
 
-    def __init__(self, config_key: str, message: str) -> None:
-        details: Dict[str, Any] = {"config_key": config_key}
-        full_msg: str = f"Configuration error for '{config_key}': {message}"
-        super().__init__(full_msg, details=details)
+    pass
+
+
+class ProcessingError(BaseUtilError):
+    """Raised when a core processing step encounters an error."""
+
+    pass
 
 
 class ResourceNotFoundError(BaseUtilError):
-    """Raised when a requested resource or file cannot be located."""
+    """Raised when a requested resource cannot be located."""
 
-    def __init__(self, resource_id: str, resource_type: str = "resource") -> None:
-        details: Dict[str, Any] = {
-            "resource_id": resource_id,
-            "resource_type": resource_type,
-        }
+    def __init__(self, resource_name: str, resource_id: Any) -> None:
+        message = f"Resource '{resource_name}' with identifier '{resource_id}' was not found."
         super().__init__(
-            f"{resource_type.capitalize()} '{resource_id}' was not found.",
-            details=details,
+            message,
+            details={"resource_name": resource_name, "resource_id": resource_id},
         )
