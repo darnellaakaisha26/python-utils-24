@@ -1,44 +1,37 @@
-import re
-from typing import Any, Dict, List, Optional
+import logging
 
+# Configure basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge two dictionaries without mutating originals."""
-    result = dict1.copy()
-    for key, value in dict2.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
+def validate_input(data: dict) -> bool:
+    """Ensures input data contains required fields."""
+    required = ['id', 'payload']
+    return all(key in data for key in required)
 
+def process_items(items: list):
+    """
+    Main processing loop with integrated validation.
+    Skips malformed items and continues processing.
+    """
+    for index, item in enumerate(items):
+        try:
+            if not isinstance(item, dict) or not validate_input(item):
+                logger.warning(f"skipping invalid item at index {index}")
+                continue
+            
+            # Simulate core logic execution
+            result = f"processed-{item['id']}"
+            logger.info(f"item {index} success: {result}")
+            
+        except Exception as e:
+            logger.error(f"unexpected error on index {index}: {e}")
 
-def get_nested(data: Dict[str, Any], path: str, default: Optional[Any] = None) -> Any:
-    """Retrieve a nested dictionary value using a dot-separated path."""
-    keys = path.split('.')
-    current = data
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
-
-
-def flatten_list(nested_list: List[Any]) -> List[Any]:
-    """Flatten an arbitrarily nested list into a single-level list."""
-    flat = []
-    for item in nested_list:
-        if isinstance(item, list):
-            flat.extend(flatten_list(item))
-        else:
-            flat.append(item)
-    return flat
-
-
-def slugify(text: str) -> str:
-    """Convert text into a standardized URL-friendly slug."""
-    text = text.lower().strip()
-    text = re.sub(r'[^\w\s-]', '', text)
-    text = re.sub(r'[\s_-]+', '-', text)
-    return re.sub(r'^-+|-+$', '', text)
+if __name__ == "__main__":
+    # Sample data stream
+    raw_data = [
+        {'id': 1, 'payload': 'data_a'},
+        {'invalid': 'entry'},
+        {'id': 2, 'payload': 'data_b'}
+    ]
+    process_items(raw_data)
