@@ -1,30 +1,34 @@
-import os
-from typing import Final
+from typing import Final, Dict, List
 
-# Application configuration defaults
-APP_NAME: Final[str] = "python-utils-24"
-DEFAULT_LOG_LEVEL: Final[str] = "INFO"
+# Application configuration constants
+DEFAULT_TIMEOUT: Final[int] = 30
 MAX_RETRIES: Final[int] = 3
-TIMEOUT_SECONDS: Final[int] = 30
 
-# File system paths
-BASE_DIR: Final[str] = os.path.dirname(os.path.abspath(__file__))
-LOG_DIR: Final[str] = os.path.join(BASE_DIR, "logs")
-DATA_DIR: Final[str] = os.path.join(BASE_DIR, "data")
+# Supported environment settings
+ENV_PRODUCTION: Final[str] = "production"
+ENV_DEVELOPMENT: Final[str] = "development"
 
-# Regex patterns
-EMAIL_PATTERN: Final[str] = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+# Allowed content types for API communication
+ALLOWED_CONTENT_TYPES: Final[List[str]] = [
+    "application/json",
+    "application/xml",
+    "text/plain"
+]
 
-# Exit codes
-SUCCESS: Final[int] = 0
-ERROR_GENERAL: Final[int] = 1
-ERROR_CONFIG: Final[int] = 2
+# Default mapping for logging levels
+LOG_LEVEL_MAP: Final[Dict[str, int]] = {
+    "DEBUG": 10,
+    "INFO": 20,
+    "WARNING": 30,
+    "ERROR": 40,
+    "CRITICAL": 50
+}
 
-def get_env_variable(key: str, default: str) -> str:
-    """Fetch environment variable with a fallback."""
-    return os.getenv(key, default)
+def get_timeout_buffer(base: int = DEFAULT_TIMEOUT) -> float:
+    """
+    Calculate timeout buffer based on default constants.
 
-# Ensure directories exist
-for directory in [LOG_DIR, DATA_DIR]:
-    if not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
+    :param base: The base timeout duration in seconds
+    :return: Calculated buffer as a float
+    """
+    return float(base * 1.1)
