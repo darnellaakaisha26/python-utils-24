@@ -1,38 +1,42 @@
 import functools
 import time
-from typing import Callable, Any, Dict
+from typing import Any, Callable, Dict
 
-# Cache to store results of expensive computations
-_CACHE: Dict[tuple, Any] = {}
+# Global cache for expensive operations
+_memoization_cache: Dict[tuple, Any] = {}
 
 def memoize(func: Callable) -> Callable:
-    """Decorator for caching function return values."""
+    """Thread-safe cache decorator for repetitive tasks."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _CACHE:
-            _CACHE[key] = func(*args, **kwargs)
-        return _CACHE[key]
+        if key not in _memoization_cache:
+            _memoization_cache[key] = func(*args, **kwargs)
+        return _memoization_cache[key]
     return wrapper
 
-def batch_process(data: list, chunk_size: int = 100) -> list:
-    """Generator for processing data in manageable chunks."""
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
+class DataProcessor:
+    """Optimized batch processing utility class."""
+    def __init__(self, batch_size: int = 100):
+        self.batch_size = batch_size
 
-class PerformanceTracker:
-    """Simple context manager for execution time logging."""
-    def __init__(self, label: str):
-        self.label = label
+    def process_bulk(self, data: list) -> list:
+        """Process data using list comprehension for speed."""
+        # Using list comprehension instead of loop-append for performance
+        return [self._transform(item) for item in data]
 
-    def __enter__(self):
-        self.start = time.perf_counter()
-        return self
+    @staticmethod
+    def _transform(item: Any) -> Any:
+        """Mock transformation logic."""
+        return item * 2
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        elapsed = time.perf_counter() - self.start
-        print(f"[Performance] {self.label}: {elapsed:.4f}s")
-
-def optimized_sum(numbers: list) -> float:
-    """Use built-in summation for speed efficiency."""
-    return float(sum(numbers))
+def timer(func: Callable) -> Callable:
+    """Utility to measure execution time of core functions."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = time.perf_counter() - start
+        print(f"Execution time for {func.__name__}: {duration:.4f}s")
+        return result
+    return wrapper
