@@ -1,34 +1,43 @@
-from typing import Final, Dict, List
+import os
+import logging
+from pathlib import Path
 
-# Application configuration constants
-DEFAULT_TIMEOUT: Final[int] = 30
-MAX_RETRIES: Final[int] = 3
+# Application path definitions
+BASE_DIR = Path(__file__).resolve().parent.parent
+LOG_DIR = BASE_DIR / "logs"
 
-# Supported environment settings
-ENV_PRODUCTION: Final[str] = "production"
-ENV_DEVELOPMENT: Final[str] = "development"
+# Standardized date/time formats
+ISO_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+DATE_FORMAT = "%Y-%m-%d"
 
-# Allowed content types for API communication
-ALLOWED_CONTENT_TYPES: Final[List[str]] = [
-    "application/json",
-    "application/xml",
-    "text/plain"
-]
+# Network and environment constants
+DEFAULT_TIMEOUT = 30
+MAX_RETRIES = 3
+ENV_PREFIX = "PY_UTILS"
 
-# Default mapping for logging levels
-LOG_LEVEL_MAP: Final[Dict[str, int]] = {
-    "DEBUG": 10,
-    "INFO": 20,
-    "WARNING": 30,
-    "ERROR": 40,
-    "CRITICAL": 50
+# Logging configuration constants
+LOG_LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
 }
 
-def get_timeout_buffer(base: int = DEFAULT_TIMEOUT) -> float:
-    """
-    Calculate timeout buffer based on default constants.
+def get_env_variable(key: str, default: str = None) -> str:
+    """Fetch environment variable with prefixed key."""
+    full_key = f"{ENV_PREFIX}_{key.upper()}"
+    return os.getenv(full_key, default)
 
-    :param base: The base timeout duration in seconds
-    :return: Calculated buffer as a float
-    """
-    return float(base * 1.1)
+# HTTP status code references
+HTTP_OK = 200
+HTTP_CREATED = 201
+HTTP_BAD_REQUEST = 400
+HTTP_UNAUTHORIZED = 401
+HTTP_FORBIDDEN = 403
+HTTP_NOT_FOUND = 404
+HTTP_SERVER_ERROR = 500
+
+# Generic character sets
+ALPHANUMERIC = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+REQUIRED_FIELDS = ["id", "timestamp", "payload"]
