@@ -1,30 +1,35 @@
 import os
-import json
-from typing import Any, Optional
+import shutil
+from typing import List, Optional
 
-def read_json(file_path: str) -> dict:
-    """Load and parse a JSON file safely."""
-    if not os.path.exists(file_path):
-        return {}
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+def clean_temp_directories(paths: List[str]) -> int:
+    """Removes temporary directories and returns count of removed items."""
+    count = 0
+    for path in paths:
+        if os.path.exists(path) and os.path.isdir(path):
+            try:
+                shutil.rmtree(path)
+                count += 1
+            except OSError:
+                continue
+    return count
 
-def write_json(data: dict, file_path: str) -> None:
-    """Serialize dictionary to a JSON file."""
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
+def validate_path_exists(path: Optional[str]) -> bool:
+    """Checks if a given string is a valid existing path."""
+    return path is not None and os.path.exists(path)
 
-def get_env_variable(key: str, default: Any = None) -> Optional[Any]:
-    """Retrieve environment variable with fallback."""
-    return os.environ.get(key, default)
+def format_byte_size(size_bytes: int) -> str:
+    """Converts integer bytes into human-readable string format."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.2f} TB"
 
-def chunk_list(data: list, size: int) -> list:
-    """Divide a list into smaller chunks."""
-    return [data[i:i + size] for i in range(0, len(data), size)]
+class PathManager:
+    """Utility class for managing filesystem paths."""
+    def __init__(self, base_dir: str):
+        self.base_dir = base_dir
 
-def sanitize_filename(name: str) -> str:
-    """Remove invalid characters from filenames."""
-    forbidden = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
-    for char in forbidden:
-        name = name.replace(char, '_')
-    return name.strip()
+    def get_full_path(self, relative_path: str) -> str:
+        return os.path.join(self.base_dir, relative_path)
