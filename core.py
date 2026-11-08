@@ -1,42 +1,33 @@
-import functools
-import time
-from typing import Any, Callable, Dict
+import json
+import os
+from typing import Any, Dict, List, Optional
 
-# Global cache for expensive operations
-_memoization_cache: Dict[tuple, Any] = {}
+def read_json(filepath: str) -> Dict[str, Any]:
+    """Load and parse JSON file contents."""
+    if not os.path.exists(filepath):
+        return {}
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-def memoize(func: Callable) -> Callable:
-    """Thread-safe cache decorator for repetitive tasks."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _memoization_cache:
-            _memoization_cache[key] = func(*args, **kwargs)
-        return _memoization_cache[key]
-    return wrapper
+def write_json(filepath: str, data: Dict[str, Any]) -> None:
+    """Serialize data to a JSON file."""
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
 
-class DataProcessor:
-    """Optimized batch processing utility class."""
-    def __init__(self, batch_size: int = 100):
-        self.batch_size = batch_size
+def flatten_list(nested_list: List[Any]) -> List[Any]:
+    """Convert nested lists into a single flat list."""
+    result = []
+    for item in nested_list:
+        if isinstance(item, list):
+            result.extend(flatten_list(item))
+        else:
+            result.append(item)
+    return result
 
-    def process_bulk(self, data: list) -> list:
-        """Process data using list comprehension for speed."""
-        # Using list comprehension instead of loop-append for performance
-        return [self._transform(item) for item in data]
+def chunk_iterable(items: List[Any], size: int) -> List[List[Any]]:
+    """Split list into chunks of specific size."""
+    return [items[i:i + size] for i in range(0, len(items), size)]
 
-    @staticmethod
-    def _transform(item: Any) -> Any:
-        """Mock transformation logic."""
-        return item * 2
-
-def timer(func: Callable) -> Callable:
-    """Utility to measure execution time of core functions."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        duration = time.perf_counter() - start
-        print(f"Execution time for {func.__name__}: {duration:.4f}s")
-        return result
-    return wrapper
+def get_env_variable(key: str, default: Optional[str] = None) -> str:
+    """Retrieve environment variable with default fallback."""
+    return os.environ.get(key, default) or ''
