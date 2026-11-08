@@ -1,35 +1,36 @@
-import os
-import shutil
-from typing import List, Optional
+from typing import Any, Dict, List
 
-def clean_temp_directories(paths: List[str]) -> int:
-    """Removes temporary directories and returns count of removed items."""
-    count = 0
-    for path in paths:
-        if os.path.exists(path) and os.path.isdir(path):
-            try:
-                shutil.rmtree(path)
-                count += 1
-            except OSError:
-                continue
-    return count
 
-def validate_path_exists(path: Optional[str]) -> bool:
-    """Checks if a given string is a valid existing path."""
-    return path is not None and os.path.exists(path)
+def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
+    """Flatten a nested dictionary into a single-level dictionary with delimited keys."""
+    items: List[tuple] = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-def format_byte_size(size_bytes: int) -> str:
-    """Converts integer bytes into human-readable string format."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_bytes < 1024:
-            return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.2f} TB"
 
-class PathManager:
-    """Utility class for managing filesystem paths."""
-    def __init__(self, base_dir: str):
-        self.base_dir = base_dir
+def get_nested(d: Dict[str, Any], path: str, default: Any = None, sep: str = ".") -> Any:
+    """Safely retrieve a value from a nested dictionary using a dot-separated path."""
+    keys = path.split(sep)
+    current = d
+    for key in keys:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
 
-    def get_full_path(self, relative_path: str) -> str:
-        return os.path.join(self.base_dir, relative_path)
+
+def set_nested(d: Dict[str, Any], path: str, value: Any, sep: str = ".") -> None:
+    """Set a value in a nested dictionary using a path, building parent structures if missing."""
+    keys = path.split(sep)
+    current = d
+    for key in keys[:-1]:
+        if key not in current or not isinstance(current[key], dict):
+            current[key] = {}
+        current = current[key]
+    current[keys[-1]] = value
