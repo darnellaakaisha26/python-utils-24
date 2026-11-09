@@ -1,41 +1,60 @@
-import logging
-from typing import Any, List, Optional
+"""Data processing module with input validation logic."""
 
-logger = logging.getLogger(__name__)
+from typing import Any, Callable, Dict, List, Tuple
+
 
 class DataProcessor:
-    """Handles batch processing and data sanitization."""
+    """Processes batches of input data with built-in validation."""
 
-    def __init__(self, settings: Optional[dict] = None):
-        self.settings = settings or {}
-        self.max_retries = self.settings.get("max_retries", 3)
+    def __init__(self, validator: Callable[[Any], bool] | None = None):
+        self.validator = validator or self._default_validator
+        self.processed_count = 0
+        self.failed_count = 0
 
-    def sanitize(self, data: List[Any]) -> List[Any]:
-        """Removes null entries from input list."""
-        if not isinstance(data, list):
-            raise ValueError("Input must be a list")
-        return [item for item in data if item is not None]
+    @staticmethod
+    def _default_validator(item: Any) -> bool:
+        """Default validation ensuring item presence and proper type."""
+        if item is None:
+            return False
+        if isinstance(item, dict) and "id" not in item:
+            return False
+        if isinstance(item, (str, list, dict)) and len(item) == 0:
+            return False
+        return True
 
-    def process_batch(self, batch: List[Any]) -> List[Any]:
-        """Executes transformation on sanitized data."""
-        cleaned = self.sanitize(batch)
-        results = []
-        
-        for item in cleaned:
-            try:
-                processed = self._transform(item)
-                results.append(processed)
-            except Exception as e:
-                logger.error(f"Failed to process item: {e}")
+    def process_batch(self, items: List[Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Main processing loop that validates and transforms input items."""
+        valid_results = []
+        invalid_records = []
+
+        for index, item in enumerate(items):
+            # Perform input validation before attempting execution
+            if not self.validator(item):
+                self.failed_count += 1
+                invalid_records.append({
+                    "index": index,
+                    "item": item,
+                    "reason": "Failed input validation rules"
+                })
                 continue
-                
-        return results
 
-    def _transform(self, item: Any) -> Any:
-        """Internal method for individual item logic."""
-        return str(item).strip().lower()
+            # Transform valid input payloads
+            try:
+                processed_item = self._transform(item)
+                valid_results.append(processed_item)
+                self.processed_count += 1
+            except Exception as exc:
+                self.failed_count += 1
+                invalid_records.append({
+                    "index": index,
+                    "item": item,
+                    "reason": f"Transformation error: {exc}"
+                })
 
-    def cleanup_resources(self) -> None:
-        """Resets internal state for new tasks."""
-        self.settings = {}
-        logger.info("Processor resources cleared successfully")
+        return valid_results, invalid_records
+
+    def _transform(self, item: Any) -> Dict[str, Any]:
+        """Transform validated items into standardized output structure."""
+        if isinstance(item, dict):
+            return {**item, "status": "processed"}
+        return {"value": item, "status": "processed"}
