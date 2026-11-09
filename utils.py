@@ -1,37 +1,31 @@
-import logging
+import json
+from typing import Any, Dict, Optional
 
-# Configure basic logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-def validate_input(data: dict) -> bool:
-    """Ensures input data contains required fields."""
-    required = ['id', 'payload']
-    return all(key in data for key in required)
-
-def process_items(items: list):
+def safe_load_json(file_path: str, default: Optional[Dict] = None) -> Dict[str, Any]:
     """
-    Main processing loop with integrated validation.
-    Skips malformed items and continues processing.
+    Safely loads a JSON file from the filesystem.
+    Returns a default dictionary if file is missing or corrupt.
     """
-    for index, item in enumerate(items):
-        try:
-            if not isinstance(item, dict) or not validate_input(item):
-                logger.warning(f"skipping invalid item at index {index}")
-                continue
-            
-            # Simulate core logic execution
-            result = f"processed-{item['id']}"
-            logger.info(f"item {index} success: {result}")
-            
-        except Exception as e:
-            logger.error(f"unexpected error on index {index}: {e}")
+    if default is None:
+        default = {}
 
-if __name__ == "__main__":
-    # Sample data stream
-    raw_data = [
-        {'id': 1, 'payload': 'data_a'},
-        {'invalid': 'entry'},
-        {'id': 2, 'payload': 'data_b'}
-    ]
-    process_items(raw_data)
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, IOError):
+        return default
+
+def chunk_list(data: list, size: int):
+    """
+    Yields successive chunks from a list.
+    Used for batch processing large datasets.
+    """
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
+
+def sanitize_dict(data: Dict[str, Any], keys_to_remove: list) -> Dict[str, Any]:
+    """
+    Removes sensitive or unnecessary keys from a dictionary.
+    Returns a new dictionary with specified keys excluded.
+    """
+    return {k: v for k, v in data.items() if k not in keys_to_remove}
