@@ -1,46 +1,36 @@
 import logging
-from typing import Optional
+from logging.handlers import RotatingFileHandler
+import os
 
-def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    """
-    Initialize and return a configured logger instance.
-
-    Args:
-        name: The name of the logger instance.
-        level: The logging threshold level.
-
-    Returns:
-        A configured logging.Logger object.
-    """
+def setup_logger(name='app_logger', log_file='app.log', level=logging.INFO):
+    """Configures a rotating file logger for the application."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
+    # Prevent duplicate handlers if setup is called multiple times
     if not logger.handlers:
-        handler = logging.StreamHandler()
+        # Rotating file handler: 5MB per file, keep 3 backups
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5*1024*1024, 
+            backupCount=3
+        )
+        
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
+        
         logger.addHandler(handler)
+        
+        # Also output to console for development visibility
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
 
     return logger
 
-def log_message(logger: logging.Logger, message: str, level: str = 'info') -> None:
-    """
-    Route message to the appropriate logger method.
-
-    Args:
-        logger: The logger instance to use.
-        message: The text string to log.
-        level: The severity level string.
-    """
-    levels = {
-        'debug': logger.debug,
-        'info': logger.info,
-        'warning': logger.warning,
-        'error': logger.error,
-        'critical': logger.critical
-    }
-    
-    log_func = levels.get(level.lower(), logger.info)
-    log_func(message)
+# Example instantiation
+if __name__ == '__main__':
+    app_logger = setup_logger()
+    app_logger.info('Logger initialized successfully')
