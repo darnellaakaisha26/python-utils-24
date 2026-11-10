@@ -1,60 +1,34 @@
-"""Data processing module with input validation logic."""
+import functools
+from typing import Callable, Any, Dict
 
-from typing import Any, Callable, Dict, List, Tuple
+# Cache for compute-intensive transformations
+_transformation_cache: Dict[tuple, Any] = {}
 
+def memoize_transform(func: Callable) -> Callable:
+    """Decorator to cache function results based on arguments."""
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _transformation_cache:
+            _transformation_cache[key] = func(*args, **kwargs)
+        return _transformation_cache[key]
+    return wrapper
 
 class DataProcessor:
-    """Processes batches of input data with built-in validation."""
+    """High-performance data processor for batch operations."""
+    def __init__(self, batch_size: int = 100):
+        self.batch_size = batch_size
 
-    def __init__(self, validator: Callable[[Any], bool] | None = None):
-        self.validator = validator or self._default_validator
-        self.processed_count = 0
-        self.failed_count = 0
+    @memoize_transform
+    def transform_record(self, record: dict) -> dict:
+        """Process individual record with cached transformations."""
+        return {k: v.strip().lower() if isinstance(v, str) else v 
+                for k, v in record.items()}
 
-    @staticmethod
-    def _default_validator(item: Any) -> bool:
-        """Default validation ensuring item presence and proper type."""
-        if item is None:
-            return False
-        if isinstance(item, dict) and "id" not in item:
-            return False
-        if isinstance(item, (str, list, dict)) and len(item) == 0:
-            return False
-        return True
-
-    def process_batch(self, items: List[Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Main processing loop that validates and transforms input items."""
-        valid_results = []
-        invalid_records = []
-
-        for index, item in enumerate(items):
-            # Perform input validation before attempting execution
-            if not self.validator(item):
-                self.failed_count += 1
-                invalid_records.append({
-                    "index": index,
-                    "item": item,
-                    "reason": "Failed input validation rules"
-                })
-                continue
-
-            # Transform valid input payloads
-            try:
-                processed_item = self._transform(item)
-                valid_results.append(processed_item)
-                self.processed_count += 1
-            except Exception as exc:
-                self.failed_count += 1
-                invalid_records.append({
-                    "index": index,
-                    "item": item,
-                    "reason": f"Transformation error: {exc}"
-                })
-
-        return valid_results, invalid_records
-
-    def _transform(self, item: Any) -> Dict[str, Any]:
-        """Transform validated items into standardized output structure."""
-        if isinstance(item, dict):
-            return {**item, "status": "processed"}
-        return {"value": item, "status": "processed"}
+    def process_batch(self, data: list) -> list:
+        """Execute batch processing using optimized path."""
+        results = []
+        for i in range(0, len(data), self.batch_size):
+            batch = data[i:i + self.batch_size]
+            results.extend([self.transform_record(r) for r in batch])
+        return results
