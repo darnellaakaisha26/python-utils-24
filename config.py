@@ -2,31 +2,45 @@ import json
 import os
 from typing import Any, Dict, Optional
 
+
 class ConfigLoader:
-    """Handles loading and merging of configuration files with defaults."""
+    """Utility class to load configurations with default values and env overrides."""
 
-    def __init__(self, default_config: Dict[str, Any]):
-        self.config = default_config
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None):
+        self.defaults = defaults or {}
 
-    def load_from_file(self, filepath: str) -> None:
-        """Loads json configuration and performs shallow merge with defaults."""
+    def load_from_dict(self, config_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge provided dictionary config into default settings."""
+        merged = self.defaults.copy()
+        merged.update(config_dict)
+        return merged
+
+    def load_from_json(self, filepath: str) -> Dict[str, Any]:
+        """Load configuration from a JSON file and apply defaults."""
         if not os.path.exists(filepath):
-            return
+            return self.defaults.copy()
 
-        try:
-            with open(filepath, 'r') as f:
-                user_config = json.load(f)
-                if isinstance(user_config, dict):
-                    self.config.update(user_config)
-        except (json.JSONDecodeError, IOError):
-            pass
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieves value from config or returns a fallback."""
-        return self.config.get(key, default)
+        return self.load_from_dict(data)
 
-def load_config(path: str, defaults: Dict[str, Any]) -> ConfigLoader:
-    """Factory function to return initialized loader."""
-    loader = ConfigLoader(defaults)
-    loader.load_from_file(path)
-    return loader
+    def apply_env_overrides(
+        self, config: Dict[str, Any], prefix: str = "APP_"
+    ) -> Dict[str, Any]:
+        """Override configuration values using environment variables."""
+        updated = config.copy()
+        for key, default_val in updated.items():
+            env_var = f"{prefix}{key.upper()}"
+            if env_var in os.environ:
+                raw_val = os.environ[env_var]
+                # Cast environment variable string to match existing type
+                if isinstance(default_val, bool):
+                    updated[key] = raw_val.lower() in ("true", "1", "yes")
+                elif isinstance(default_val, int):
+                    updated[key] = int(raw_val)
+                elif isinstance(default_val, float):
+                    updated[key] = float(raw_val)
+                else:
+                    updated[key] = raw_val
+        return updated
