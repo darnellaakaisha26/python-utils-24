@@ -1,31 +1,35 @@
-import json
-from typing import Any, Dict, Optional
+import functools
+import time
+from typing import Callable, Any, Dict
 
-def safe_load_json(file_path: str, default: Optional[Dict] = None) -> Dict[str, Any]:
-    """
-    Safely loads a JSON file from the filesystem.
-    Returns a default dictionary if file is missing or corrupt.
-    """
-    if default is None:
-        default = {}
+# Cache for performance optimization of expensive operations
+_cache: Dict[tuple, Any] = {}
 
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError, IOError):
-        return default
+def memoize(func: Callable) -> Callable:
+    """Decorator to cache function results based on arguments."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _cache:
+            _cache[key] = func(*args, **kwargs)
+        return _cache[key]
+    return wrapper
 
-def chunk_list(data: list, size: int):
-    """
-    Yields successive chunks from a list.
-    Used for batch processing large datasets.
-    """
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
+def batch_process(data: list, chunk_size: int = 100):
+    """Generator to yield chunks for efficient memory usage."""
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
 
-def sanitize_dict(data: Dict[str, Any], keys_to_remove: list) -> Dict[str, Any]:
-    """
-    Removes sensitive or unnecessary keys from a dictionary.
-    Returns a new dictionary with specified keys excluded.
-    """
-    return {k: v for k, v in data.items() if k not in keys_to_remove}
+class PerformanceTimer:
+    """Context manager for tracking execution duration."""
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end = time.perf_counter()
+        self.duration = self.end - self.start
+
+def fast_lookup_dict(items: list, key_attr: str) -> dict:
+    """Converts list to dict for O(1) complexity lookup."""
+    return {getattr(item, key_attr): item for item in items}
