@@ -1,22 +1,17 @@
-from typing import Any, Dict, List
+"""General helper utilities for data structures and text formatting."""
+
+from typing import Any, Dict, List, TypeVar
+
+T = TypeVar("T")
 
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
-    """Flatten a nested dictionary into a single-level dictionary with delimited keys."""
-    items: List[tuple] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+def safe_get(data: Dict[str, Any], path: str, default: Any = None) -> Any:
+    """Safely extract nested values from a dictionary using dot-notation.
 
-
-def get_nested(d: Dict[str, Any], path: str, default: Any = None, sep: str = ".") -> Any:
-    """Safely retrieve a value from a nested dictionary using a dot-separated path."""
-    keys = path.split(sep)
-    current = d
+    Example: safe_get({'a': {'b': 1}}, 'a.b') -> 1
+    """
+    keys = path.split(".")
+    current = data
     for key in keys:
         if isinstance(current, dict) and key in current:
             current = current[key]
@@ -25,12 +20,30 @@ def get_nested(d: Dict[str, Any], path: str, default: Any = None, sep: str = "."
     return current
 
 
-def set_nested(d: Dict[str, Any], path: str, value: Any, sep: str = ".") -> None:
-    """Set a value in a nested dictionary using a path, building parent structures if missing."""
-    keys = path.split(sep)
-    current = d
-    for key in keys[:-1]:
-        if key not in current or not isinstance(current[key], dict):
-            current[key] = {}
-        current = current[key]
-    current[keys[-1]] = value
+def chunk_list(items: List[T], chunk_size: int) -> List[List[T]]:
+    """Split a list into smaller chunks of specified size."""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be a positive integer")
+    return [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
+
+
+def truncate_text(text: str, max_length: int, suffix: str = "...") -> str:
+    """Truncate text to a maximum length, appending suffix if truncated."""
+    if max_length <= 0:
+        raise ValueError("max_length must be greater than 0")
+    if len(text) <= max_length:
+        return text
+
+    adjusted_len = max(1, max_length - len(suffix))
+    return text[:adjusted_len] + suffix
+
+
+def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge two dictionaries, giving priority to dict2 values."""
+    merged = dict1.copy()
+    for key, value in dict2.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
