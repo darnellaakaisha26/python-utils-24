@@ -1,43 +1,36 @@
-import os
-import logging
-from pathlib import Path
+import enum
+from typing import Dict, Any
 
-# Application path definitions
-BASE_DIR = Path(__file__).resolve().parent.parent
-LOG_DIR = BASE_DIR / "logs"
+class ErrorCodes(enum.IntEnum):
+    SUCCESS = 0
+    INVALID_INPUT = 1001
+    TIMEOUT = 1002
+    UNAUTHORIZED = 1003
+    RESOURCE_NOT_FOUND = 1004
+    INTERNAL_SERVER_ERROR = 5000
 
-# Standardized date/time formats
-ISO_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
-DATE_FORMAT = "%Y-%m-%d"
-
-# Network and environment constants
-DEFAULT_TIMEOUT = 30
-MAX_RETRIES = 3
-ENV_PREFIX = "PY_UTILS"
-
-# Logging configuration constants
-LOG_LEVELS = {
-    "DEBUG": logging.DEBUG,
-    "INFO": logging.INFO,
-    "WARNING": logging.WARNING,
-    "ERROR": logging.ERROR,
-    "CRITICAL": logging.CRITICAL,
+ERROR_MESSAGES: Dict[int, str] = {
+    ErrorCodes.SUCCESS: "Operation successful",
+    ErrorCodes.INVALID_INPUT: "The provided input parameters are invalid",
+    ErrorCodes.TIMEOUT: "The operation timed out while waiting for a response",
+    ErrorCodes.UNAUTHORIZED: "Authentication is required for this action",
+    ErrorCodes.RESOURCE_NOT_FOUND: "The requested resource could not be located",
+    ErrorCodes.INTERNAL_SERVER_ERROR: "An unexpected error occurred in the system"
 }
 
-def get_env_variable(key: str, default: str = None) -> str:
-    """Fetch environment variable with prefixed key."""
-    full_key = f"{ENV_PREFIX}_{key.upper()}"
-    return os.getenv(full_key, default)
+def get_error_message(code: int) -> str:
+    """Retrieve human-readable description for error code."""
+    return ERROR_MESSAGES.get(code, ERROR_MESSAGES[ErrorCodes.INTERNAL_SERVER_ERROR])
 
-# HTTP status code references
-HTTP_OK = 200
-HTTP_CREATED = 201
-HTTP_BAD_REQUEST = 400
-HTTP_UNAUTHORIZED = 401
-HTTP_FORBIDDEN = 403
-HTTP_NOT_FOUND = 404
-HTTP_SERVER_ERROR = 500
+# Configuration defaults for environment edge cases
+DEFAULT_RETRY_ATTEMPTS = 3
+DEFAULT_TIMEOUT_SECONDS = 30
+MAX_LOG_FILE_SIZE_MB = 10
 
-# Generic character sets
-ALPHANUMERIC = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-REQUIRED_FIELDS = ["id", "timestamp", "payload"]
+# Validation boundaries
+MIN_PROCESS_COUNT = 1
+MAX_PROCESS_COUNT = 64
+
+if __name__ == "__main__":
+    # Verification of constant mapping
+    assert get_error_message(ErrorCodes.TIMEOUT) == "The operation timed out while waiting for a response"
