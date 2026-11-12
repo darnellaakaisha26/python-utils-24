@@ -1,13 +1,13 @@
 # python-utils-24
 
-A curated collection of production-ready Python utility functions designed to streamline boilerplate code in data processing and automation tasks. This library focuses on performance, type safety, and minimizing dependencies for cleaner project integration.
+A curated collection of production-ready Python utility functions designed to streamline daily development tasks. This library focuses on performance, type safety, and minimizing boilerplate code for common data manipulation and system operations.
 
 ## Features
 
-*   **Robust File Operations:** Advanced wrappers for path handling, directory recursive creation, and atomic file writes.
-*   **Performance Decorators:** Built-in caching mechanisms, retry logic with exponential backoff, and execution time logging.
-*   **String Sanitization:** Comprehensive cleaning tools for normalizing filenames, email formats, and Unicode stripping.
-*   **Lightweight Core:** Zero-dependency architecture ensuring compatibility across Python 3.8+ environments.
+*   **Robust File Operations:** Simplified wrappers for recursive file searching, safe directory creation, and atomic file writes.
+*   **Data Transformation:** Efficient helpers for flattening nested dictionaries and converting complex iterables into CSV-friendly formats.
+*   **Performance Decorators:** Built-in tools for easy execution timing and lightweight memoization without external dependencies.
+*   **Input Validation:** Concise validators for environment variables and configuration objects to ensure application stability.
 
 ## Installation
 
@@ -17,28 +17,31 @@ Install the package directly via pip:
 pip install python-utils-24
 ```
 
-To include it in your `requirements.txt` file:
+For local development or manual installation:
 
-```text
-python-utils-24>=1.0.0
+```bash
+git clone https://github.com/Developer/python-utils-24.git
+cd python-utils-24
+pip install -e .
 ```
 
 ## Basic Usage
 
-The library is designed for quick imports to solve common architectural hurdles. Below is an example of the retry decorator and atomic file writing:
+The following example demonstrates how to use the high-performance timing decorator and the dictionary flattener:
 
 ```python
-from pyutils import retry, atomic_write
+from pyutils24.decorators import time_execution
+from pyutils24.data import flatten_dict
 
-# Automatically retry a network call up to 3 times
-@retry(attempts=3, delay=2)
-def fetch_data():
-    # Simulated fragile operation
-    pass
+@time_execution
+def process_data(data):
+    return flatten_dict(data)
 
-# Write data safely to disk without file corruption
-data = "System state saved."
-atomic_write("config.txt", data)
+nested = {"user": {"id": 1, "meta": {"login": "admin"}}}
+result = process_data(nested)
+
+print(result)
+# Output: {'user_id': 1, 'user_meta_login': 'admin'}
 ```
 
 ## License
