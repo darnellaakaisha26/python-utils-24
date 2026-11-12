@@ -1,24 +1,27 @@
-import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-def load_config(path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """Load configuration from JSON file or return defaults."""
-    if not os.path.exists(path):
-        return defaults
+class ConfigManager:
+    """Handles application configuration loading and access."""
+    
+    def __init__(self, default_path: str = ".env"):
+        self._config: Dict[str, Any] = {}
+        self.default_path = default_path
 
-    try:
-        with open(path, 'r') as f:
-            config = json.load(f)
-            return {**defaults, **config}
-    except (json.JSONDecodeError, IOError):
-        return defaults
+    def load_from_env(self) -> None:
+        """Loads environment variables into memory."""
+        self._config = {key: value for key, value in os.environ.items()}
 
-def save_config(path: str, config: Dict[str, Any]) -> bool:
-    """Persist configuration to JSON file."""
-    try:
-        with open(path, 'w') as f:
-            json.dump(config, f, indent=4)
-        return True
-    except IOError:
-        return False
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        """Retrieves config value with fallback."""
+        return self._config.get(key, default)
+
+    def set(self, key: str, value: Any) -> None:
+        """Updates config value."""
+        self._config[key] = value
+
+def get_default_config() -> ConfigManager:
+    """Factory for config manager instance."""
+    manager = ConfigManager()
+    manager.load_from_env()
+    return manager
