@@ -1,27 +1,35 @@
 import os
 from typing import Any, Dict, Optional
 
-class ConfigManager:
-    """Handles application configuration loading and access."""
-    
-    def __init__(self, default_path: str = ".env"):
-        self._config: Dict[str, Any] = {}
-        self.default_path = default_path
+class ConfigLoader:
+    """Handles loading and merging of application configurations."""
 
-    def load_from_env(self) -> None:
-        """Loads environment variables into memory."""
-        self._config = {key: value for key, value in os.environ.items()}
+    def __init__(self, env_prefix: str = "APP_"):
+        self.env_prefix = env_prefix
 
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieves config value with fallback."""
-        return self._config.get(key, default)
+    def load_from_env(self) -> Dict[str, str]:
+        """Extracts environment variables matching the prefix."""
+        return {
+            key[len(self.env_prefix):].lower(): value
+            for key, value in os.environ.items()
+            if key.startswith(self.env_prefix)
+        }
 
-    def set(self, key: str, value: Any) -> None:
-        """Updates config value."""
-        self._config[key] = value
+    def get_setting(self, key: str, default: Optional[Any] = None) -> Any:
+        """Retrieves configuration with fallback to environment."""
+        config = self.load_from_env()
+        return config.get(key.lower(), default)
 
-def get_default_config() -> ConfigManager:
-    """Factory for config manager instance."""
-    manager = ConfigManager()
-    manager.load_from_env()
-    return manager
+class AppConfig:
+    """Global application configuration storage."""
+    _settings: Dict[str, Any] = {"debug": False, "version": "24.0.0"}
+
+    @classmethod
+    def update(cls, new_settings: Dict[str, Any]) -> None:
+        """Updates global settings with new dictionary."""
+        cls._settings.update(new_settings)
+
+    @classmethod
+    def get(cls, key: str) -> Any:
+        """Returns value for given configuration key."""
+        return cls._settings.get(key)
