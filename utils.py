@@ -1,35 +1,30 @@
-import functools
 import time
-from typing import Callable, Any, Dict
+import functools
+import logging
+from typing import Callable, Any, Type, Tuple
 
-# Cache for performance optimization of expensive operations
-_cache: Dict[tuple, Any] = {}
+logger = logging.getLogger(__name__)
 
-def memoize(func: Callable) -> Callable:
-    """Decorator to cache function results based on arguments."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _cache:
-            _cache[key] = func(*args, **kwargs)
-        return _cache[key]
-    return wrapper
-
-def batch_process(data: list, chunk_size: int = 100):
-    """Generator to yield chunks for efficient memory usage."""
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
-
-class PerformanceTimer:
-    """Context manager for tracking execution duration."""
-    def __enter__(self):
-        self.start = time.perf_counter()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.end = time.perf_counter()
-        self.duration = self.end - self.start
-
-def fast_lookup_dict(items: list, key_attr: str) -> dict:
-    """Converts list to dict for O(1) complexity lookup."""
-    return {getattr(item, key_attr): item for item in items}
+def retry(exceptions: Tuple[Type[Exception], ...] = (Exception,), 
+          tries: int = 3, 
+          delay: float = 1.0, 
+          backoff: float = 2.0):
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            current_delay = delay
+            for i in range(tries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if i == tries - 1:
+                        logger.error(f"Failed after {tries} attempts: {e}")
+                        raise
+                    
+                    logger.warning(f"Attempt {i+1} failed, retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            return None
+        return wrapper
+    return decorator
