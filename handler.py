@@ -1,38 +1,32 @@
+from typing import Any, Dict, Optional, Callable
 import logging
 
-# Configure logger for module tracking
 logger = logging.getLogger(__name__)
 
-def validate_input(data):
-    """Ensures input is a non-empty dictionary with required keys."""
-    if not isinstance(data, dict):
-        return False, "Data must be a dictionary"
-    if "task_id" not in data or "payload" not in data:
-        return False, "Missing mandatory keys: task_id, payload"
-    return True, None
+class RequestHandler:
+    """Manages execution of callback tasks with basic error handling."""
 
-def run_processing_loop(data_stream):
-    """Main processing loop with integrated input validation."""
-    for entry in data_stream:
-        is_valid, error = validate_input(entry)
-        
-        if not is_valid:
-            logger.error(f"validation failed: {error}")
-            continue
+    def __init__(self, timeout: int = 30) -> None:
+        self.timeout: int = timeout
+        self.registry: Dict[str, Callable] = {}
+
+    def register_task(self, name: str, func: Callable) -> None:
+        """Registers a callable task under a specific name."""
+        self.registry[name] = func
+
+    def execute(self, name: str, *args: Any, **kwargs: Any) -> Optional[Any]:
+        """Executes a registered task by name with provided arguments."""
+        task = self.registry.get(name)
+        if not task:
+            logger.error(f"Task {name} not found in registry")
+            return None
 
         try:
-            process_task(entry['task_id'], entry['payload'])
+            return task(*args, **kwargs)
         except Exception as e:
-            logger.error(f"task {entry['task_id']} execution error: {e}")
+            logger.exception(f"Execution error in {name}: {str(e)}")
+            return None
 
-def process_task(task_id, payload):
-    """Actual business logic execution."""
-    print(f"Processing task {task_id} with payload {payload}")
-
-if __name__ == '__main__':
-    mock_data = [
-        {"task_id": 1, "payload": "data_a"},
-        {"invalid": "payload"},
-        {"task_id": 2, "payload": "data_b"}
-    ]
-    run_processing_loop(mock_data)
+    def get_task_names(self) -> list[str]:
+        """Retrieves list of all registered task identifiers."""
+        return list(self.registry.keys())
