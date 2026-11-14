@@ -1,30 +1,36 @@
-import time
-import functools
 import logging
-from typing import Callable, Any, Type, Tuple
 
+# Configure logger for module tracking
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def retry(exceptions: Tuple[Type[Exception], ...] = (Exception,), 
-          tries: int = 3, 
-          delay: float = 1.0, 
-          backoff: float = 2.0):
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            current_delay = delay
-            for i in range(tries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    if i == tries - 1:
-                        logger.error(f"Failed after {tries} attempts: {e}")
-                        raise
-                    
-                    logger.warning(f"Attempt {i+1} failed, retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-            return None
-        return wrapper
-    return decorator
+def process_data_stream(items):
+    """Processes a stream of inputs with strict validation."""
+    valid_results = []
+    
+    for item in items:
+        try:
+            # Validation logic: Ensure data is a non-empty dictionary
+            if not isinstance(item, dict) or not item:
+                raise ValueError(f"Invalid input format: {type(item).__name__}")
+            
+            # Ensure required key exists
+            if 'value' not in item:
+                raise KeyError("Missing 'value' key in input")
+            
+            # Ensure value is a positive integer
+            val = item.get('value')
+            if not isinstance(val, int) or val < 0:
+                raise TypeError(f"Non-positive integer encountered: {val}")
+            
+            valid_results.append(val * 2)
+        except (ValueError, KeyError, TypeError) as e:
+            logger.error(f"Skipping invalid item: {e}")
+            continue
+            
+    return valid_results
+
+if __name__ == "__main__":
+    data = [{'value': 10}, 'bad_input', {'value': -5}, {'value': 20}, {}]
+    results = process_data_stream(data)
+    logger.info(f"Processed results: {results}")
