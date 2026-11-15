@@ -1,33 +1,37 @@
 import json
-import os
+import logging
 from typing import Any, Dict, List, Optional
 
-def read_json(filepath: str) -> Dict[str, Any]:
-    """Load and parse JSON file contents."""
-    if not os.path.exists(filepath):
+def get_logger(name: str) -> logging.Logger:
+    """Configure and return a standard logger instance."""
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    return logger
+
+def load_json(filepath: str) -> Dict[str, Any]:
+    """Safely load a JSON file from disk."""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
         return {}
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return json.load(f)
 
-def write_json(filepath: str, data: Dict[str, Any]) -> None:
-    """Serialize data to a JSON file."""
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
+def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
+    """Split a list into smaller chunks of fixed size."""
+    return [data[i:i + size] for i in range(0, len(data), size)]
 
-def flatten_list(nested_list: List[Any]) -> List[Any]:
-    """Convert nested lists into a single flat list."""
-    result = []
-    for item in nested_list:
-        if isinstance(item, list):
-            result.extend(flatten_list(item))
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Convert a nested dictionary into a flat dictionary."""
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
         else:
-            result.append(item)
-    return result
-
-def chunk_iterable(items: List[Any], size: int) -> List[List[Any]]:
-    """Split list into chunks of specific size."""
-    return [items[i:i + size] for i in range(0, len(items), size)]
-
-def get_env_variable(key: str, default: Optional[str] = None) -> str:
-    """Retrieve environment variable with default fallback."""
-    return os.environ.get(key, default) or ''
+            items.append((new_key, v))
+    return dict(items)
