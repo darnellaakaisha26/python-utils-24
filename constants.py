@@ -1,36 +1,31 @@
-import enum
-from typing import Dict, Any
+import sys
+from functools import lru_cache
 
-class ErrorCodes(enum.IntEnum):
-    SUCCESS = 0
-    INVALID_INPUT = 1001
-    TIMEOUT = 1002
-    UNAUTHORIZED = 1003
-    RESOURCE_NOT_FOUND = 1004
-    INTERNAL_SERVER_ERROR = 5000
+# Global constants for library performance optimization
+# Using slots and lru_cache to reduce memory footprint
 
-ERROR_MESSAGES: Dict[int, str] = {
-    ErrorCodes.SUCCESS: "Operation successful",
-    ErrorCodes.INVALID_INPUT: "The provided input parameters are invalid",
-    ErrorCodes.TIMEOUT: "The operation timed out while waiting for a response",
-    ErrorCodes.UNAUTHORIZED: "Authentication is required for this action",
-    ErrorCodes.RESOURCE_NOT_FOUND: "The requested resource could not be located",
-    ErrorCodes.INTERNAL_SERVER_ERROR: "An unexpected error occurred in the system"
-}
+CACHE_SIZE = 1024
 
-def get_error_message(code: int) -> str:
-    """Retrieve human-readable description for error code."""
-    return ERROR_MESSAGES.get(code, ERROR_MESSAGES[ErrorCodes.INTERNAL_SERVER_ERROR])
+@lru_cache(maxsize=CACHE_SIZE)
+def get_system_platform():
+    """Cached retrieval of platform information."""
+    return sys.platform
 
-# Configuration defaults for environment edge cases
-DEFAULT_RETRY_ATTEMPTS = 3
-DEFAULT_TIMEOUT_SECONDS = 30
-MAX_LOG_FILE_SIZE_MB = 10
+class OptimizationConfig:
+    """Config container using slots to prevent __dict__ overhead."""
+    __slots__ = ('buffer_size', 'timeout', 'retry_limit')
 
-# Validation boundaries
-MIN_PROCESS_COUNT = 1
-MAX_PROCESS_COUNT = 64
+    def __init__(self, buffer_size: int = 4096, timeout: float = 30.0, retry_limit: int = 3):
+        self.buffer_size = buffer_size
+        self.timeout = timeout
+        self.retry_limit = retry_limit
 
-if __name__ == "__main__":
-    # Verification of constant mapping
-    assert get_error_message(ErrorCodes.TIMEOUT) == "The operation timed out while waiting for a response"
+# Pre-computed defaults for high-frequency operations
+DEFAULT_CONFIG = OptimizationConfig()
+
+def get_optimized_buffer_size() -> int:
+    """Return the base buffer size for core operations."""
+    return DEFAULT_CONFIG.buffer_size
+
+# Ensure clean constant access patterns across the package
+PLATFORM = get_system_platform()
