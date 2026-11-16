@@ -4,29 +4,35 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RequestHandler:
-    """Manages execution of callback tasks with basic error handling."""
+    """Handles incoming requests with optional pre-processing."""
 
-    def __init__(self, timeout: int = 30) -> None:
-        self.timeout: int = timeout
-        self.registry: Dict[str, Callable] = {}
+    def __init__(self, callback: Optional[Callable[[Dict[str, Any]], Any]] = None) -> None:
+        self.callback = callback
 
-    def register_task(self, name: str, func: Callable) -> None:
-        """Registers a callable task under a specific name."""
-        self.registry[name] = func
+    def process_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validates and processes input dictionary data.
 
-    def execute(self, name: str, *args: Any, **kwargs: Any) -> Optional[Any]:
-        """Executes a registered task by name with provided arguments."""
-        task = self.registry.get(name)
-        if not task:
-            logger.error(f"Task {name} not found in registry")
-            return None
+        Args:
+            data: A dictionary containing request payload.
+
+        Returns:
+            A dictionary containing the processed result or status.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("Request data must be a dictionary")
 
         try:
-            return task(*args, **kwargs)
+            if self.callback:
+                result = self.callback(data)
+                return {"status": "success", "data": result}
+            
+            logger.info("Request processed without callback")
+            return {"status": "processed", "data": data}
         except Exception as e:
-            logger.exception(f"Execution error in {name}: {str(e)}")
-            return None
+            logger.error(f"Processing failed: {str(e)}")
+            return {"status": "error", "message": str(e)}
 
-    def get_task_names(self) -> list[str]:
-        """Retrieves list of all registered task identifiers."""
-        return list(self.registry.keys())
+    def update_callback(self, callback: Callable[[Dict[str, Any]], Any]) -> None:
+        """Updates the request callback function."""
+        self.callback = callback
