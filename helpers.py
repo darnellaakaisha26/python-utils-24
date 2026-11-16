@@ -1,49 +1,42 @@
-"""General helper utilities for data structures and text formatting."""
+import os
+import shutil
+from typing import List, Optional
 
-from typing import Any, Dict, List, TypeVar
+def cleanup_directory(path: str, extensions: Optional[List[str]] = None) -> int:
+    """Removes files with specific extensions from the target directory."""
+    count = 0
+    if not os.path.exists(path):
+        return count
 
-T = TypeVar("T")
+    for filename in os.listdir(path):
+        file_path = os.path.join(path, filename)
+        if os.path.isfile(file_path):
+            if extensions is None or any(filename.endswith(ext) for ext in extensions):
+                os.remove(file_path)
+                count += 1
+    return count
 
+def ensure_directory(path: str) -> None:
+    """Creates a directory if it does not exist."""
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-def safe_get(data: Dict[str, Any], path: str, default: Any = None) -> Any:
-    """Safely extract nested values from a dictionary using dot-notation.
+def purge_temp_files(base_path: str) -> bool:
+    """Recursive removal of common temporary artifacts."""
+    try:
+        for root, dirs, files in os.walk(base_path):
+            for name in dirs:
+                if name in ('__pycache__', '.pytest_cache'):
+                    shutil.rmtree(os.path.join(root, name))
+        return True
+    except OSError:
+        return False
 
-    Example: safe_get({'a': {'b': 1}}, 'a.b') -> 1
-    """
-    keys = path.split(".")
-    current = data
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
-
-
-def chunk_list(items: List[T], chunk_size: int) -> List[List[T]]:
-    """Split a list into smaller chunks of specified size."""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be a positive integer")
-    return [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
-
-
-def truncate_text(text: str, max_length: int, suffix: str = "...") -> str:
-    """Truncate text to a maximum length, appending suffix if truncated."""
-    if max_length <= 0:
-        raise ValueError("max_length must be greater than 0")
-    if len(text) <= max_length:
-        return text
-
-    adjusted_len = max(1, max_length - len(suffix))
-    return text[:adjusted_len] + suffix
-
-
-def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge two dictionaries, giving priority to dict2 values."""
-    merged = dict1.copy()
-    for key, value in dict2.items():
-        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
-            merged[key] = deep_merge(merged[key], value)
-        else:
-            merged[key] = value
-    return merged
+def get_file_metadata(path: str) -> dict:
+    """Retrieves basic stats for a given file."""
+    stat = os.stat(path)
+    return {
+        "size": stat.st_size,
+        "created": stat.st_ctime,
+        "modified": stat.st_mtime
+    }
