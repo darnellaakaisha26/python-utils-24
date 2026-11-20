@@ -1,53 +1,38 @@
-from typing import Any, Dict, List, Tuple
+import json
+import logging
+from typing import Any, Dict, Optional
 
+def sanitize_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Removes keys with None values from a dictionary."""
+    return {k: v for k, v in data.items() if v is not None}
 
-def validate_item(item: Any) -> Tuple[bool, str]:
-    """Validate individual input item structure and data types."""
-    if not isinstance(item, dict):
-        return False, f"Expected dict, got {type(item).__name__}"
+def safe_load_json(data: str) -> Optional[Dict[str, Any]]:
+    """Parses JSON string safely returning None on failure."""
+    try:
+        return json.loads(data)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
-    required_keys = {"id", "action", "payload"}
-    missing = required_keys - set(item.keys())
-    if missing:
-        return False, f"Missing required keys: {', '.join(sorted(missing))}"
+def chunk_list(items: list, size: int):
+    """Yields successive chunks from a list."""
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
 
-    if not isinstance(item["id"], (int, str)) or not str(item["id"]).strip():
-        return False, "Invalid 'id': must be non-empty string or integer"
+def get_nested(data: Dict, path: str, default: Any = None) -> Any:
+    """Accesses dictionary values using dot notation."""
+    keys = path.split('.')
+    current = data
+    try:
+        for key in keys:
+            current = current[key]
+        return current
+    except (KeyError, TypeError):
+        return default
 
-    if not isinstance(item["payload"], dict):
-        return False, "Invalid 'payload': must be a dictionary"
-
-    return True, ""
-
-
-def process_batch(items: List[Any]) -> Dict[str, Any]:
-    """Process a batch of input items, enforcing input validation in the main loop."""
-    results: Dict[str, List[Dict[str, Any]]] = {"successful": [], "failed": []}
-
-    if not isinstance(items, list):
-        raise TypeError(f"Expected items to be a list, got {type(items).__name__}")
-
-    for idx, item in enumerate(items):
-        is_valid, error_msg = validate_item(item)
-
-        if not is_valid:
-            results["failed"].append({
-                "index": idx,
-                "item": item,
-                "error": error_msg
-            })
-            continue
-
-        # Process valid item
-        item_id = str(item["id"]).strip()
-        action = str(item["action"]).lower()
-        payload = item["payload"]
-
-        results["successful"].append({
-            "id": item_id,
-            "action": action,
-            "processed_payload_size": len(payload),
-            "status": "completed"
-        })
-
-    return results
+def format_byte_size(num: int) -> str:
+    """Converts integer bytes to human-readable string."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if num < 1024:
+            return f"{num:.1f} {unit}"
+        num /= 1024
+    return f"{num:.1f} TB"
