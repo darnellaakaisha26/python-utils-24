@@ -1,28 +1,35 @@
-import json
 import os
+import json
+import logging
 from typing import Any, Dict
 
-class ConfigLoader:
-    """Utility for loading JSON configurations with defaults."""
+logger = logging.getLogger(__name__)
+
+def load_config(file_path: str) -> Dict[str, Any]:
+    """Loads and parses JSON configuration file with error handling."""
+    if not os.path.exists(file_path):
+        logger.error(f"config file not found: {file_path}")
+        return {}
+
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+            if not isinstance(data, dict):
+                raise ValueError("invalid config format: expected object")
+            return data
+    except json.JSONDecodeError as e:
+        logger.error(f"malformed json in {file_path}: {e}")
+    except PermissionError:
+        logger.error(f"insufficient permissions to read {file_path}")
+    except Exception as e:
+        logger.error(f"unexpected error reading config {file_path}: {e}")
     
-    def __init__(self, default_config: Dict[str, Any]):
-        self.config = default_config
+    return {}
 
-    def load(self, filepath: str) -> Dict[str, Any]:
-        """Loads configuration from file and merges with defaults."""
-        if not os.path.exists(filepath):
-            return self.config
-
-        try:
-            with open(filepath, 'r') as f:
-                user_config = json.load(f)
-                return {**self.config, **user_config}
-        except (json.JSONDecodeError, IOError):
-            return self.config
-
-    def update(self, key: str, value: Any, filepath: str) -> None:
-        """Persists a single key to the config file."""
-        current = self.load(filepath)
-        current[key] = value
-        with open(filepath, 'w') as f:
-            json.dump(current, f, indent=4)
+def get_setting(config: Dict[str, Any], key: str, default: Any = None) -> Any:
+    """Safely retrieves a nested setting with a default fallback."""
+    try:
+        return config.get(key, default)
+    except AttributeError:
+        logger.warning(f"invalid config type provided: {type(config)}")
+        return default
