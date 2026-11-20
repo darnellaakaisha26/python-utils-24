@@ -1,34 +1,53 @@
-import functools
-from typing import Callable, Any, Dict
+from typing import Any, Dict, List, Tuple
 
-# Cache for compute-intensive transformations
-_transformation_cache: Dict[tuple, Any] = {}
 
-def memoize_transform(func: Callable) -> Callable:
-    """Decorator to cache function results based on arguments."""
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _transformation_cache:
-            _transformation_cache[key] = func(*args, **kwargs)
-        return _transformation_cache[key]
-    return wrapper
+def validate_item(item: Any) -> Tuple[bool, str]:
+    """Validate individual input item structure and data types."""
+    if not isinstance(item, dict):
+        return False, f"Expected dict, got {type(item).__name__}"
 
-class DataProcessor:
-    """High-performance data processor for batch operations."""
-    def __init__(self, batch_size: int = 100):
-        self.batch_size = batch_size
+    required_keys = {"id", "action", "payload"}
+    missing = required_keys - set(item.keys())
+    if missing:
+        return False, f"Missing required keys: {', '.join(sorted(missing))}"
 
-    @memoize_transform
-    def transform_record(self, record: dict) -> dict:
-        """Process individual record with cached transformations."""
-        return {k: v.strip().lower() if isinstance(v, str) else v 
-                for k, v in record.items()}
+    if not isinstance(item["id"], (int, str)) or not str(item["id"]).strip():
+        return False, "Invalid 'id': must be non-empty string or integer"
 
-    def process_batch(self, data: list) -> list:
-        """Execute batch processing using optimized path."""
-        results = []
-        for i in range(0, len(data), self.batch_size):
-            batch = data[i:i + self.batch_size]
-            results.extend([self.transform_record(r) for r in batch])
-        return results
+    if not isinstance(item["payload"], dict):
+        return False, "Invalid 'payload': must be a dictionary"
+
+    return True, ""
+
+
+def process_batch(items: List[Any]) -> Dict[str, Any]:
+    """Process a batch of input items, enforcing input validation in the main loop."""
+    results: Dict[str, List[Dict[str, Any]]] = {"successful": [], "failed": []}
+
+    if not isinstance(items, list):
+        raise TypeError(f"Expected items to be a list, got {type(items).__name__}")
+
+    for idx, item in enumerate(items):
+        is_valid, error_msg = validate_item(item)
+
+        if not is_valid:
+            results["failed"].append({
+                "index": idx,
+                "item": item,
+                "error": error_msg
+            })
+            continue
+
+        # Process valid item
+        item_id = str(item["id"]).strip()
+        action = str(item["action"]).lower()
+        payload = item["payload"]
+
+        results["successful"].append({
+            "id": item_id,
+            "action": action,
+            "processed_payload_size": len(payload),
+            "status": "completed"
+        })
+
+    return results
